@@ -1,31 +1,70 @@
 import express from "express";
+import { Pool } from "pg";
+import dotenv from "dotenv";
 
-import authMiddleware from "../middleware/authMiddleware.js";
-
-import {
-    createProperty,
-    getAllProperties,
-    getPropertyById,
-    getHostProperties,
-    updateProperty,
-    deleteProperty
-} from "../controllers/propertyController.js";
+dotenv.config();
 
 const router = express.Router();
 
-/*
-    Public Routes
-*/
-router.get("/", getAllProperties);
+// Initialize the database connection pool using your Supabase connection string
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false // Required for secure connections to Supabase
+  }
+});
 
-router.get("/host/my-properties", authMiddleware, getHostProperties);
+// Search bar endpoint: GET /api/properties/search?q=your_search_term
+router.get("/search", async (req, res) => {
+  try {
+    const searchTerm = req.query.q || "";
 
-router.get("/:id", getPropertyById);
+    let query;
+    let queryParams;
 
-router.post("/", authMiddleware, createProperty);
+    if (searchTerm.trim() === "") {
+      // Return all properties when no search term is provided
+      query = `
+        SELECT p.*,
+               (SELECT image_url
+                FROM property_images
+                WHERE property_id = p.id
+                LIMIT 1) AS image,
+               p.average_rating AS rating,
+               p.maximum_guests AS guests
+        FROM properties p
+        ORDER BY p.created_at DESC;
+      `;
+      queryParams = [];
+    } else {
+      // Search using ILIKE
+      query = `
+        SELECT p.*,
+               (SELECT image_url
+                FROM property_images
+                WHERE property_id = p.id
+                LIMIT 1) AS image,
+               p.average_rating AS rating,
+               p.maximum_guests AS guests
+        FROM properties p
+        WHERE p.title ILIKE $1
+           OR p.location ILIKE $1
+           OR p.property_type ILIKE $1
+           OR p.district ILIKE $1
+        ORDER BY p.created_at DESC;
+      `;
+      queryParams = [`%${searchTerm}%`];
+    }
 
-router.put("/:id", authMiddleware, updateProperty);
+    const result = await pool.query(query, queryParams);
 
-router.delete("/:id", authMiddleware, deleteProperty);
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Database search error detailed log:", error);
+    res
+      .status(500)
+      .json({ error: "Internal server error during search optimization." });
+  }
+});
 
 export default router;
