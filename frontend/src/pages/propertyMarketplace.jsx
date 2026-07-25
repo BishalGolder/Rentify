@@ -3,13 +3,18 @@ import PropertyCard from "../components/propertyCard";
 import "../styles/propertyMarketplace.css";
 
 function PropertyMarketplace() {
-    // State
+    // Existing State
     const [propertiesList, setPropertiesList] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [district, setDistrict] = useState("");
-    const [propertyType, setPropertyType] = useState(""); // NEW
+    const [propertyType, setPropertyType] = useState("");
     const [sort, setSort] = useState("");
     const [loading, setLoading] = useState(true);
+
+    // Filter States
+    const [minBedrooms, setMinBedrooms] = useState("");
+    const [minBathrooms, setMinBathrooms] = useState("");
+    const [minGuests, setMinGuests] = useState("");
 
     // Fetch properties
     useEffect(() => {
@@ -18,7 +23,7 @@ function PropertyMarketplace() {
                 setLoading(true);
 
                 const response = await fetch(
-                    `http://localhost:5000/api/properties/search?q=${searchQuery}&district=${district}&propertyType=${propertyType}&sort=${sort}`
+                    `http://localhost:5000/api/properties/search?q=${searchQuery}&district=${district}&propertyType=${propertyType}&sort=${sort}&minBedrooms=${minBedrooms}&minBathrooms=${minBathrooms}&minGuests=${minGuests}`
                 );
 
                 const data = await response.json();
@@ -38,7 +43,15 @@ function PropertyMarketplace() {
         }, 300);
 
         return () => clearTimeout(delayDebounceFn);
-    }, [searchQuery, district, propertyType, sort]); // UPDATED
+    }, [
+        searchQuery, 
+        district, 
+        propertyType, 
+        sort, 
+        minBedrooms, 
+        minBathrooms, 
+        minGuests
+    ]);
 
     return (
         <div className="marketplace">
@@ -77,16 +90,14 @@ function PropertyMarketplace() {
                     gap: "15px",
                     marginBottom: "20px",
                     flexWrap: "wrap",
+                    alignItems: "center"
                 }}
             >
                 {/* District Filter */}
                 <select
                     value={district}
                     onChange={(e) => setDistrict(e.target.value)}
-                    style={{
-                        padding: "10px",
-                        borderRadius: "6px",
-                    }}
+                    style={{ padding: "10px", borderRadius: "6px" }}
                 >
                     <option value="">All Districts</option>
                     <option value="Dhaka">Dhaka</option>
@@ -101,10 +112,7 @@ function PropertyMarketplace() {
                 <select
                     value={propertyType}
                     onChange={(e) => setPropertyType(e.target.value)}
-                    style={{
-                        padding: "10px",
-                        borderRadius: "6px",
-                    }}
+                    style={{ padding: "10px", borderRadius: "6px" }}
                 >
                     <option value="">All Types</option>
                     <option value="Apartment">Apartment</option>
@@ -113,22 +121,53 @@ function PropertyMarketplace() {
                     <option value="Hotel">Hotel</option>
                 </select>
 
-                {/* Sort */}
+                {/* Min Bedrooms Filter */}
+                <select
+                    value={minBedrooms}
+                    onChange={(e) => setMinBedrooms(e.target.value)}
+                    style={{ padding: "10px", borderRadius: "6px" }}
+                >
+                    <option value="">Any Bedrooms</option>
+                    <option value="1">1+ Bedroom</option>
+                    <option value="2">2+ Bedrooms</option>
+                    <option value="3">3+ Bedrooms</option>
+                    <option value="4">4+ Bedrooms</option>
+                </select>
+
+                {/* Min Bathrooms Filter */}
+                <select
+                    value={minBathrooms}
+                    onChange={(e) => setMinBathrooms(e.target.value)}
+                    style={{ padding: "10px", borderRadius: "6px" }}
+                >
+                    <option value="">Any Bathrooms</option>
+                    <option value="1">1+ Bathroom</option>
+                    <option value="2">2+ Bathrooms</option>
+                    <option value="3">3+ Bathrooms</option>
+                </select>
+
+                {/* Min Guests Filter */}
+                <select
+                    value={minGuests}
+                    onChange={(e) => setMinGuests(e.target.value)}
+                    style={{ padding: "10px", borderRadius: "6px" }}
+                >
+                    <option value="">Any Guests</option>
+                    <option value="2">2+ Guests</option>
+                    <option value="4">4+ Guests</option>
+                    <option value="6">6+ Guests</option>
+                </select>
+
+                {/* Sort (Added Top Rated option here) */}
                 <select
                     value={sort}
                     onChange={(e) => setSort(e.target.value)}
-                    style={{
-                        padding: "10px",
-                        borderRadius: "6px",
-                    }}
+                    style={{ padding: "10px", borderRadius: "6px" }}
                 >
                     <option value="">Newest</option>
-                    <option value="price_low">
-                        Price: Low → High
-                    </option>
-                    <option value="price_high">
-                        Price: High → Low
-                    </option>
+                    <option value="top_rated">Top Rated ⭐</option>
+                    <option value="price_low">Price: Low → High</option>
+                    <option value="price_high">Price: High → Low</option>
                 </select>
             </div>
 

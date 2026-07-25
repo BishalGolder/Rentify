@@ -6,7 +6,6 @@ dotenv.config();
 
 const router = express.Router();
 
-// Initialize the database connection pool using your Supabase connection string
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
@@ -22,6 +21,10 @@ router.get("/search", async (req, res) => {
     const district = req.query.district || "";
     const propertyType = req.query.propertyType || "";
     const sort = req.query.sort || "";
+
+    const minBedrooms = req.query.minBedrooms || "";
+    const minBathrooms = req.query.minBathrooms || "";
+    const minGuests = req.query.minGuests || "";
 
     // Base Query
     let query = `
@@ -70,8 +73,33 @@ router.get("/search", async (req, res) => {
       index++;
     }
 
-    // Sorting
+    // Minimum Bedrooms Filter
+    if (minBedrooms !== "") {
+      query += ` AND p.bedrooms >= $${index}`;
+      queryParams.push(parseInt(minBedrooms, 10));
+      index++;
+    }
+
+    // Minimum Bathrooms Filter
+    if (minBathrooms !== "") {
+      query += ` AND p.bathrooms >= $${index}`;
+      queryParams.push(parseInt(minBathrooms, 10));
+      index++;
+    }
+
+    // Minimum Max Guests Capacity Filter
+    if (minGuests !== "") {
+      query += ` AND p.maximum_guests >= $${index}`;
+      queryParams.push(parseInt(minGuests, 10));
+      index++;
+    }
+
+    // Sorting (Added top_rated case)
     switch (sort) {
+      case "top_rated":
+        query += ` ORDER BY p.average_rating DESC NULLS LAST`;
+        break;
+
       case "price_low":
         query += ` ORDER BY p.price ASC`;
         break;
