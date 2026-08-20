@@ -1,4 +1,4 @@
-import supabase from "../config/supabaseClient.js"; // Adjust relative path if needed
+import supabase from "../config/supabaseClient.js";
 
 export const registerUser = async (req, res) => {
     const { email, password, fullName, role } = req.body;
@@ -8,14 +8,13 @@ export const registerUser = async (req, res) => {
     }
 
     try {
-        // Sign up user via Supabase Auth
         const { data, error } = await supabase.auth.signUp({
             email,
             password,
             options: {
                 data: {
                     full_name: fullName,
-                    role: role, // "user" (Guest) or "host"
+                    role: role, // "guest" or "host" only — admins are never created via signup
                 }
             }
         });
@@ -46,21 +45,27 @@ export const loginUser = async (req, res) => {
 
         if (error) throw error;
 
-        // Retrieve the role we saved in user metadata during signup
-        const userRole = data.user?.user_metadata?.role;
+        // profiles.role is the source of truth (supports admin; user_metadata does not).
+        // Fall back to user_metadata only if the profile row hasn't been created yet.
+        const { data: profile } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", data.user.id)
+            .single();
 
-        // Ensure the screen role matches what they registered as
-        if (userRole !== role) {
-            return res.status(403).json({ 
-                error: `Access Denied. You registered as a ${userRole}, but you are trying to log in as a ${role}.` 
+        const actualRole = profile?.role || data.user?.user_metadata?.role;
+
+        if (actualRole !== role) {
+            return res.status(403).json({
+                error: `Access Denied. This account is registered as ${actualRole}, not ${role}.`
             });
         }
 
-        // Send session token and user info back to React
         res.status(200).json({
             message: "Login successful",
-            session: data.session, // Contains access_token
-            user: data.user
+            session: data.session,
+            user: data.user,
+            role: actualRole
         });
     } catch (error) {
         res.status(400).json({ error: error.message });

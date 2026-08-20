@@ -3,9 +3,8 @@ import supabase from "../config/supabaseClient.js";
 /*
     Create Profile
 */
-export const createProfile = async (profileData) => {
-
-    const { data, error } = await supabase
+export const createProfile = async (profileData, client = supabase) => {
+    const { data, error } = await client
         .from("profiles")
         .insert([profileData])
         .select()
@@ -18,9 +17,8 @@ export const createProfile = async (profileData) => {
 /*
     Get Profile By ID
 */
-export const getProfile = async (userId) => {
-
-    const { data, error } = await supabase
+export const getProfile = async (userId, client = supabase) => {
+    const { data, error } = await client
         .from("profiles")
         .select("*")
         .eq("id", userId)
@@ -33,9 +31,8 @@ export const getProfile = async (userId) => {
 /*
     Update Profile
 */
-export const updateProfile = async (userId, updatedData) => {
-
-    const { data, error } = await supabase
+export const updateProfile = async (userId, updatedData, client = supabase) => {
+    const { data, error } = await client
         .from("profiles")
         .update(updatedData)
         .eq("id", userId)
@@ -49,9 +46,8 @@ export const updateProfile = async (userId, updatedData) => {
 /*
     Delete Profile
 */
-export const deleteProfile = async (userId) => {
-
-    const { data, error } = await supabase
+export const deleteProfile = async (userId, client = supabase) => {
+    const { data, error } = await client
         .from("profiles")
         .delete()
         .eq("id", userId)
@@ -65,9 +61,8 @@ export const deleteProfile = async (userId) => {
 /*
     Change User Role
 */
-export const changeRole = async (userId, role) => {
-
-    const { data, error } = await supabase
+export const changeRole = async (userId, role, client = supabase) => {
+    const { data, error } = await client
         .from("profiles")
         .update({ role })
         .eq("id", userId)

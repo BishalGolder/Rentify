@@ -1,4 +1,5 @@
-import supabase from "../config/supabaseClient.js";
+import supabase, { createRequestClient } from "../config/supabaseClient.js";
+
 
 const authMiddleware = async (req, res, next) => {
 
@@ -23,8 +24,11 @@ const authMiddleware = async (req, res, next) => {
         }
 
         req.user = data.user;
+        req.token = token;
+        req.supabase = createRequestClient(token); // RLS-aware client for this request only
 
         next();
+
 
     } catch (err) {
 

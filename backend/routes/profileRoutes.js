@@ -1,6 +1,7 @@
 import express from "express";
 
 import authMiddleware from "../middleware/authMiddleware.js";
+import adminMiddleware from "../middleware/adminMiddleware.js";
 
 import {
     createProfile,
@@ -20,6 +21,6 @@ router.put("/me", authMiddleware, updateProfile);
 
 router.delete("/me", authMiddleware, deleteProfile);
 
-router.put("/:id/role", authMiddleware, changeRole);
+router.put("/:id/role", authMiddleware, adminMiddleware, changeRole);
 
 export default router;

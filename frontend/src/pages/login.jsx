@@ -4,7 +4,7 @@ import "../styles/auth.css";
 
 function Login() {
     const navigate = useNavigate();
-    const [role, setRole] = useState("user");
+    const [role, setRole] = useState("guest");
     const [loading, setLoading] = useState(false);
 
     const [formData, setFormData] = useState({
@@ -42,7 +42,8 @@ function Login() {
 
             // Save the session token and user info (e.g., in localStorage)
             localStorage.setItem("token", data.session.access_token);
-            localStorage.setItem("user", JSON.stringify(data.user));
+            localStorage.setItem("user", JSON.stringify({ ...data.user, role: data.role }));
+
 
             alert("Login Successful!");
             navigate("/dashboard"); // Redirect to home/dashboard
@@ -63,8 +64,8 @@ function Login() {
 
                 <div className="role-container">
                     <div
-                        className={role === "user" ? "role-card active" : "role-card"}
-                        onClick={() => setRole("user")}
+                        className={role === "guest" ? "role-card active" : "role-card"}
+                        onClick={() => setRole("guest")}
                     >
                         <h3>Guest</h3>
                         <p>Book Properties</p>
@@ -78,9 +79,12 @@ function Login() {
                         <p>Manage Properties</p>
                     </div>
 
-                    <div className="role-card disabled">
+                    <div
+                        className={role === "admin" ? "role-card active" : "role-card"}
+                        onClick={() => setRole("admin")}
+                    >
                         <h3>Admin</h3>
-                        <p>Coming Soon</p>
+                        <p>Manage platform</p>
                     </div>
                 </div>
 

@@ -292,3 +292,146 @@
 .dashboard-content {
   padding-top: 1rem;
 }
+/* =====================================================
+   HOST ACTION BAR
+   ===================================================== */
+
+.host-action-bar {
+    width: 100%;
+    min-height: 72px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 1.5rem;
+
+    padding: 0.9rem 2rem;
+
+    background: #ffffff;
+
+    border-bottom: 1px solid var(--border-color);
+
+    box-shadow:
+        0 2px 5px rgba(0, 0, 0, 0.03);
+}
+
+
+/* LEFT SIDE */
+
+.host-status-area {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+
+    min-width: 0;
+}
+
+
+.host-status-title {
+    font-size: 1rem;
+    font-weight: 700;
+
+    color: var(--text-main);
+
+    white-space: nowrap;
+}
+
+
+.host-status-items {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+
+    flex-wrap: wrap;
+}
+
+
+.host-status-item {
+    display: inline-flex;
+    align-items: center;
+
+    padding: 0.4rem 0.7rem;
+
+    border-radius: 999px;
+
+    font-size: 0.78rem;
+    font-weight: 600;
+
+    white-space: nowrap;
+}
+
+
+/* PENDING */
+
+.host-status-item.status-pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+
+/* APPROVED / NO PENDING */
+
+.host-status-item.status-approved {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+
+/* REJECTED */
+
+.host-status-item.status-rejected {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+
+/* LOADING */
+
+.host-status-loading {
+    color: var(--text-muted);
+
+    font-size: 0.85rem;
+}
+
+
+/* ADD PROPERTY BUTTON */
+
+.host-add-property-btn {
+    flex-shrink: 0;
+
+    padding: 0.65rem 1.2rem;
+
+    font-size: 0.9rem;
+}
+
+
+/* =====================================================
+   RESPONSIVE
+   ===================================================== */
+
+@media (max-width: 800px) {
+
+    .host-action-bar {
+        flex-direction: column;
+
+        align-items: stretch;
+
+        padding: 1rem;
+    }
+
+
+    .host-status-area {
+        flex-direction: column;
+
+        align-items: flex-start;
+
+        gap: 0.75rem;
+    }
+
+
+    .host-add-property-btn {
+        width: 100%;
+    }
+
+}

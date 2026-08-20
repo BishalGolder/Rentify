@@ -25,7 +25,7 @@ export const createProfile = async (req, res) => {
         };
 
         const { data, error } =
-            await ProfileModel.createProfile(profileData);
+            await ProfileModel.createProfile(profileData, req.supabase);
 
         if (error) {
             return res.status(400).json(error);
@@ -55,7 +55,7 @@ export const getMyProfile = async (req, res) => {
     const userId = req.user.id;
 
     const { data, error } =
-        await ProfileModel.getProfile(userId);
+        await ProfileModel.getProfile(userId, req.supabase);
 
     if (error) {
         return res.status(404).json({
@@ -75,10 +75,14 @@ export const updateProfile = async (req, res) => {
 
     const userId = req.user.id;
 
+    // Role can only be changed via the admin-only /:id/role route (Problem C.3)
+    const { role, ...safeUpdates } = req.body;
+
     const { data, error } =
         await ProfileModel.updateProfile(
             userId,
-            req.body
+            safeUpdates,
+            req.supabase
         );
 
     if (error) {
@@ -101,7 +105,7 @@ export const deleteProfile = async (req, res) => {
     const userId = req.user.id;
 
     const { data, error } =
-        await ProfileModel.deleteProfile(userId);
+        await ProfileModel.deleteProfile(userId, req.supabase);
 
     if (error) {
         return res.status(400).json(error);
@@ -125,7 +129,7 @@ export const changeRole = async (req, res) => {
     const { role } = req.body;
 
     const { data, error } =
-        await ProfileModel.changeRole(id, role);
+        await ProfileModel.changeRole(id, role, req.supabase);
 
     if (error) {
         return res.status(400).json(error);
