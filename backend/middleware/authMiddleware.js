@@ -1,44 +1,101 @@
-import supabase, { createRequestClient } from "../config/supabaseClient.js";
+import supabase, {
+    createRequestClient
+} from "../config/supabaseClient.js";
 
 
 const authMiddleware = async (req, res, next) => {
-
     try {
 
-        const authHeader = req.headers.authorization;
+        const authHeader =
+            req.headers.authorization;
 
-        if (!authHeader) {
+
+        /*
+            Authorization header must exist
+            and use Bearer token format
+        */
+        if (
+            !authHeader ||
+            !authHeader.startsWith("Bearer ")
+        ) {
             return res.status(401).json({
-                message: "Authorization header missing"
+                message:
+                    "Authorization token missing."
             });
         }
 
-        const token = authHeader.replace("Bearer ", "");
 
-        const { data, error } = await supabase.auth.getUser(token);
+        /*
+            Extract access token
+        */
+        const token =
+            authHeader.split(" ")[1];
 
-        if (error || !data.user) {
+
+        if (!token) {
             return res.status(401).json({
-                message: "Invalid or expired token"
+                message:
+                    "Authorization token missing."
             });
         }
 
+
+        /*
+            Validate token with Supabase
+        */
+        const {
+            data,
+            error
+        } = await supabase.auth.getUser(token);
+
+
+        if (
+            error ||
+            !data ||
+            !data.user
+        ) {
+            return res.status(401).json({
+                message:
+                    "Invalid or expired token."
+            });
+        }
+
+
+        /*
+            Make authenticated user available
+            to protected routes
+        */
         req.user = data.user;
+
         req.token = token;
-        req.supabase = createRequestClient(token); // RLS-aware client for this request only
+
+
+        /*
+            Create RLS-aware Supabase client.
+
+            PostgreSQL will now see the real
+            authenticated user's auth.uid().
+        */
+        req.supabase =
+            createRequestClient(token);
+
 
         next();
 
 
-    } catch (err) {
+    } catch (error) {
+
+        console.error(
+            "Authentication middleware error:",
+            error
+        );
 
         return res.status(500).json({
-            message: "Authentication failed",
-            error: err.message
+            message:
+                "Authentication failed."
         });
-
     }
-
 };
+
 
 export default authMiddleware;
