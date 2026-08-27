@@ -1,0 +1,1 @@
+const userId = req.user.id;
