@@ -1,6 +1,3 @@
-import supabase from "../config/supabaseClient.js";
-
-
 /*
 =====================================================
 HOST MIDDLEWARE
@@ -19,7 +16,6 @@ Check profiles.role
 Allow only host
 =====================================================
 */
-
 
 const hostMiddleware = async (
     req,
@@ -81,7 +77,7 @@ const hostMiddleware = async (
 
             error: profileError
 
-        } = await supabase
+        } = await req.supabase
 
             .from("profiles")
 

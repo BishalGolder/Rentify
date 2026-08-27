@@ -1,13 +1,17 @@
 import supabase from "../config/supabaseClient.js";
 
 export const createNotification = async (notificationData, client = supabase) => {
-    const { data, error } = await client
-        .from("notifications")
-        .insert([notificationData])
-        .select()
-        .single();
+    const { data, error } = await client.rpc("create_notification", {
+        p_user_id: notificationData.user_id,
+        p_type: notificationData.type,
+        p_title: notificationData.title,
+        p_message: notificationData.message,
+        p_related_entity_type: notificationData.related_entity_type || null,
+        p_related_entity_id: notificationData.related_entity_id || null
+    });
     return { data, error };
 };
+
 
 export const getMyNotifications = async (userId, client = supabase) => {
     const { data, error } = await client

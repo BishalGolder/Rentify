@@ -2,8 +2,10 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
 import { addRecentlyViewed } from "../hooks/useRecentlyViewed";
+import BookingModal from "../components/bookingModal";
 
 import "../styles/profile-property.css";
+import "../styles/booking.css";
 
 
 function PropertyDetails() {
@@ -25,21 +27,26 @@ function PropertyDetails() {
     const [activeImage, setActiveImage] =
         useState(0);
 
+    const [showBookingModal, setShowBookingModal] =
+        useState(false);
+
     const [reviews, setReviews] = useState([]);
     const [reviewsLoading, setReviewsLoading] = useState(true);
     const [rating, setRating] = useState(5);
     const [comment, setComment] = useState("");
     const [submittingReview, setSubmittingReview] = useState(false);
     const [reviewMessage, setReviewMessage] = useState("");
-    const [eligibleBookingId, setEligibleBookingId] = useState(null);
-    const [canReview, setCanReview] = useState(false);
+ 
+    const storedUser = JSON.parse(localStorage.getItem("user") || "null");
+    const canReview = storedUser?.role === "guest";
+
+
 
     useEffect(() => {
-
+ 
         fetchProperty();
         fetchReviews();
-        checkReviewEligibility();
-
+ 
     }, [id]);
 
 
@@ -88,153 +95,149 @@ function PropertyDetails() {
         }
 
     };
+
     const fetchReviews = async () => {
-    try {
-        setReviewsLoading(true);
+        try {
+            setReviewsLoading(true);
 
-        const res = await fetch(
-            `http://localhost:5000/api/reviews/property/${id}`
-        );
+            const res = await fetch(
+                `http://localhost:5000/api/reviews/property/${id}`
+            );
 
-        if (res.ok) {
-            const data = await res.json();
-            setReviews(data);
-        } else {
-            console.error("Failed to load reviews");
+            if (res.ok) {
+                const data = await res.json();
+                setReviews(data);
+            } else {
+                console.error("Failed to load reviews");
+            }
+
+        } catch (error) {
+            console.error("Review loading error:", error);
+        } finally {
+            setReviewsLoading(false);
         }
-
-    } catch (error) {
-        console.error("Review loading error:", error);
-    } finally {
-        setReviewsLoading(false);
-    }
     };
 
     const checkReviewEligibility = async () => {
-    try {
-        const token = localStorage.getItem("token");
+        try {
+            const token = localStorage.getItem("token");
 
-        if (!token) {
-            setCanReview(false);
-            setEligibleBookingId(null);
-            return;
-        }
-
-        const res = await fetch(
-            `http://localhost:5000/api/reviews/eligible/${id}`,
-            {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
+            if (!token) {
+                setCanReview(false);
+                setEligibleBookingId(null);
+                return;
             }
-        );
 
-        const data = await res.json();
+            const res = await fetch(
+                `http://localhost:5000/api/reviews/eligible/${id}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
 
-        if (res.ok && data.eligible) {
-            setCanReview(true);
-            setEligibleBookingId(data.booking_id);
-        } else {
+            const data = await res.json();
+
+            if (res.ok && data.eligible) {
+                setCanReview(true);
+                setEligibleBookingId(data.booking_id);
+            } else {
+                setCanReview(false);
+                setEligibleBookingId(null);
+            }
+
+        } catch (error) {
+            console.error("Eligibility check error:", error);
             setCanReview(false);
             setEligibleBookingId(null);
         }
-
-    } catch (error) {
-        console.error("Eligibility check error:", error);
-        setCanReview(false);
-        setEligibleBookingId(null);
-    }
     };
+
     const handleBackToDashboard = () => {
 
         navigate("/dashboard");
 
     };
+
     const handleReviewSubmit = async (e) => {
-    e.preventDefault();
+        e.preventDefault();
 
-    try {
-        setSubmittingReview(true);
-        setReviewMessage("");
+        try {
+            setSubmittingReview(true);
+            setReviewMessage("");
 
-        const token = localStorage.getItem("token");
+            const token = localStorage.getItem("token");
 
-        if (!token) {
-            setReviewMessage("Please login first.");
-            return;
-        }
-
-        // Safety check
-        if (!eligibleBookingId) {
-            setReviewMessage(
-                "You do not have a completed stay available for review."
-            );
-            return;
-        }
-
-        // Validate comment
-        if (!comment.trim()) {
-            setReviewMessage("Please write a review.");
-            return;
-        }
-
-        const response = await fetch(
-            "http://localhost:5000/api/reviews",
-            {
-                method: "POST",
-
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
-                },
-
-                body: JSON.stringify({
-                    booking_id: eligibleBookingId,
-                    property_id: id,
-                    rating: Number(rating),
-                    comment: comment.trim()
-                })
+            if (!token) {
+                setReviewMessage("Please login first.");
+                return;
             }
-        );
 
-        const data = await response.json();
+            // Validate comment
+            if (!comment.trim()) {
+                setReviewMessage("Please write a review.");
+                return;
+            }
+ 
+            const response = await fetch(
+                "http://localhost:5000/api/reviews",
+                {
+                    method: "POST",
+ 
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    },
+ 
+                    body: JSON.stringify({
+                        property_id: id,
+                        rating: Number(rating),
+                        comment: comment.trim()
+                    })
+                }
+            );
 
-        if (!response.ok) {
-            throw new Error(
-                data.message ||
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.message ||
+                    "Review submission failed."
+                );
+            }
+
+            setReviewMessage(
+                "Review submitted successfully!"
+            );
+
+            setComment("");
+            setRating(5);
+
+            // Refresh everything after successful review
+            await fetchReviews();
+            await fetchProperty();
+
+
+        } catch (error) {
+
+            console.error(
+                "Review submission error:",
+                error
+            );
+
+            setReviewMessage(
+                error.message ||
                 "Review submission failed."
             );
+
+        } finally {
+
+            setSubmittingReview(false);
         }
-
-        setReviewMessage(
-            "Review submitted successfully!"
-        );
-
-        setComment("");
-        setRating(5);
-
-        // Refresh everything after successful review
-        await fetchReviews();
-        await fetchProperty();
-        await checkReviewEligibility();
-
-    } catch (error) {
-
-        console.error(
-            "Review submission error:",
-            error
-        );
-
-        setReviewMessage(
-            error.message ||
-            "Review submission failed."
-        );
-
-    } finally {
-
-        setSubmittingReview(false);
-    }
     };
+
     if (loading) {
 
         return (
@@ -589,19 +592,39 @@ function PropertyDetails() {
                         </div>
 
 
-                        <button
-                            type="button"
-                            className="btn btn-primary"
-                            onClick={() =>
-                                alert(
-                                    "Booking flow coming soon!"
-                                )
-                            }
-                        >
-                            Book Stay
-                        </button>
+                        {(() => {
+                            const storedUser = JSON.parse(localStorage.getItem("user") || "null");
+                            const isHostOrAdmin = storedUser && ["host", "admin"].includes(storedUser.role);
+                            if (isHostOrAdmin) return null;
+                            return (
+                                <button
+                                    type="button"
+                                    className="btn btn-primary"
+                                    onClick={() => {
+
+                                        const token = localStorage.getItem("token");
+
+                                        if (!token) {
+
+                                            alert("Please login as a guest to book this property.");
+
+                                            navigate("/login");
+
+                                            return;
+
+                                        }
+
+                                        setShowBookingModal(true);
+
+                                    }}
+                                >
+                                    Book Stay
+                                </button>
+                            );
+                        })()}
 
                     </div>
+
                     {/* Reviews Section */}
                     <div
                         style={{
@@ -712,6 +735,15 @@ function PropertyDetails() {
                 </div>
 
             </div>
+
+            {showBookingModal && (
+
+                <BookingModal
+                    property={property}
+                    onClose={() => setShowBookingModal(false)}
+                />
+
+            )}
 
         </div>
 

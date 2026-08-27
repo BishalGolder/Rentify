@@ -354,13 +354,26 @@ function Dashboard() {
                         WISHLIST
                     ================================================= */}
 
-                    {/* Wishlist is a guest-only feature (Issue 1) */}
+                    {/* Wishlist is a guest-only feature */}
                     {user.role === "guest" && (
                         <button className="nav-btn" onClick={() => navigate("/wishlist")}>
                             Wishlist
                         </button>
                     )}
 
+                    {/* My Bookings is a guest-only feature */}
+                    {user.role === "guest" && (
+                        <button className="nav-btn" onClick={() => navigate("/bookings")}>
+                            My Bookings
+                        </button>
+                    )}
+
+                    {/* Revenue is a host-only feature */}
+                    {user.role === "host" && (
+                        <button className="nav-btn" onClick={() => navigate("/revenue")}>
+                            Revenue
+                        </button>
+                    )}
 
 
                     {/* =================================================

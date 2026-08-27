@@ -1,8 +1,8 @@
 import express from "express";
 import authMiddleware from "../middleware/authMiddleware.js";
-import supabase, {
-    serviceSupabase
-} from "../config/supabaseClient.js";
+import guestMiddleware from "../middleware/guestMiddleware.js";
+import supabase from "../config/supabaseClient.js";
+
 
 const router = express.Router();
 
@@ -13,12 +13,11 @@ const router = express.Router();
     POST /api/reviews
     =====================================================
 */
-router.post("/", authMiddleware, async (req, res) => {
+router.post("/", authMiddleware, guestMiddleware, async (req, res) => {
     try {
         const guestId = req.user.id;
 
         const {
-            booking_id,
             property_id,
             rating,
             comment
@@ -26,10 +25,10 @@ router.post("/", authMiddleware, async (req, res) => {
 
 
         // Validate required fields
-        if (!booking_id || !property_id || !rating || !comment?.trim()) {
+        if (!property_id || !rating || !comment?.trim()) {
             return res.status(400).json({
                 message:
-                    "booking_id, property_id, rating and comment are required."
+                    "property_id, rating and comment are required."
             });
         }
 
@@ -49,52 +48,31 @@ router.post("/", authMiddleware, async (req, res) => {
 
 
         /*
-            Check that:
-
-            1. Booking exists
-            2. Booking belongs to logged-in guest
-            3. Booking belongs to this property
+            Confirm the property actually exists
+            (gives a clear message instead of a raw FK error)
         */
         const {
-            data: booking,
-            error: bookingError
+            data: property,
+            error: propertyError
         } = await req.supabase
-            .from("bookings")
-            .select("id, property_id, guest_id, status")
-            .eq("id", booking_id)
-            .eq("guest_id", guestId)
-            .eq("property_id", property_id)
+            .from("properties")
+            .select("id")
+            .eq("id", property_id)
             .maybeSingle();
 
-
-        if (bookingError) {
-            return res.status(400).json({
-                message: bookingError.message
-            });
+        if (propertyError) {
+            return res.status(400).json({ message: propertyError.message });
         }
 
-
-        if (!booking) {
-            return res.status(403).json({
-                message:
-                    "You do not have a valid booking for this property."
-            });
+        if (!property) {
+            return res.status(404).json({ message: "Property not found." });
         }
 
 
         /*
-            Guest can review only after completing stay
-        */
-        if (booking.status !== "completed") {
-            return res.status(400).json({
-                message:
-                    "You can only review a property after completing your stay."
-            });
-        }
-
-
-        /*
-            Prevent duplicate review for the same booking
+            TEMPORARY (Part 1): one review per guest per
+            property, with no stay required. Part 2
+            replaces this with the real completed-stay check.
         */
         const {
             data: existingReview,
@@ -102,27 +80,23 @@ router.post("/", authMiddleware, async (req, res) => {
         } = await req.supabase
             .from("reviews")
             .select("id")
-            .eq("booking_id", booking_id)
+            .eq("property_id", property_id)
+            .eq("guest_id", guestId)
             .maybeSingle();
 
-
         if (existingReviewError) {
-            return res.status(400).json({
-                message: existingReviewError.message
-            });
+            return res.status(400).json({ message: existingReviewError.message });
         }
-
 
         if (existingReview) {
             return res.status(409).json({
-                message:
-                    "You have already reviewed this booking."
+                message: "You have already reviewed this property."
             });
         }
 
 
         /*
-            Insert the review
+            Insert the review — no booking_id for now (Part 1)
         */
         const {
             data: review,
@@ -131,7 +105,7 @@ router.post("/", authMiddleware, async (req, res) => {
             .from("reviews")
             .insert([
                 {
-                    booking_id: booking_id,
+                    booking_id: null,
                     property_id: property_id,
                     guest_id: guestId,
                     rating: numericRating,
@@ -141,87 +115,29 @@ router.post("/", authMiddleware, async (req, res) => {
             .select()
             .single();
 
-
         if (reviewError) {
-            return res.status(400).json({
-                message: reviewError.message
-            });
+            return res.status(400).json({ message: reviewError.message });
         }
 
 
         /*
-            Get all ratings for this property
+            Recalculate the property's average rating
+            (atomic, database-side — see Step 1b)
         */
         const {
-            data: ratings,
-            error: ratingsError
-        } = await req.supabase
-            .from("reviews")
-            .select("rating")
-            .eq("property_id", property_id);
-
-
-        if (ratingsError) {
-            return res.status(400).json({
-                message: ratingsError.message
-            });
-        }
-
-
-        /*
-            Calculate average rating
-        */
-        const total = ratings.reduce(
-            (sum, item) => sum + Number(item.rating),
-            0
+            data: averageRating,
+            error: avgError
+        } = await req.supabase.rpc(
+            "recalculate_property_rating",
+            { p_property_id: property_id }
         );
 
-        const averageRating =
-            ratings.length > 0
-                ? Number(
-                    (total / ratings.length).toFixed(2)
-                )
-                : 0;
-
-
-        /*
-            Update property's average rating
-        */
-        if (!serviceSupabase) {
-            console.error(
-                "SUPABASE_SERVICE_ROLE_KEY is missing."
-            );
-
+        if (avgError) {
+            console.error("Could not update average rating:", avgError.message);
             return res.status(500).json({
-                message:
-                    "Review was saved, but property rating could not be updated."
+                message: "Review was saved, but the property rating could not be updated."
             });
         }
-
-
-        const {
-            error: propertyError
-        } = await serviceSupabase
-            .from("properties")
-            .update({
-                average_rating: averageRating
-            })
-            .eq("id", property_id);
-
-
-        if (propertyError) {
-
-            console.error(
-                "Could not update average rating:",
-                propertyError.message
-            );
-
-            return res.status(500).json({
-                message:
-                    "Review was saved, but property rating could not be updated."
-            });
-        }
-
 
         return res.status(201).json({
             message: "Review submitted successfully.",
@@ -229,17 +145,9 @@ router.post("/", authMiddleware, async (req, res) => {
             average_rating: averageRating
         });
 
-
     } catch (error) {
-
-        console.error(
-            "Review submission error:",
-            error
-        );
-
-        return res.status(500).json({
-            message: "Internal server error."
-        });
+        console.error("Review submission error:", error);
+        return res.status(500).json({ message: "Internal server error." });
     }
 });
 

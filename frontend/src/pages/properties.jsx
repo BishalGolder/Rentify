@@ -1865,6 +1865,32 @@ function Properties() {
 
 
                                                     {/* =================================================
+                                                        MANAGE AVAILABILITY (verified property)
+                                                        ================================================= */}
+
+                                                    {property.verification_status ===
+                                                        "verified" && (
+
+                                                        <button
+
+                                                            className="btn btn-primary"
+
+                                                            onClick={() =>
+                                                                navigate(
+                                                                    `/properties/${property.id}/availability`
+                                                                )
+                                                            }
+
+                                                        >
+
+                                                            Manage Availability
+
+                                                        </button>
+
+                                                    )}
+
+
+                                                    {/* =================================================
                                                         VERIFIED PROPERTY
                                                         ================================================= */}
 
