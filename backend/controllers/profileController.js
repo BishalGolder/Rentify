@@ -141,3 +141,48 @@ export const changeRole = async (req, res) => {
     });
 
 };
+/*
+    Get All Users For Admin
+*/
+export const getAllUsers = async (req, res) => {
+
+    try {
+
+        const { serviceSupabase } =
+            await import("../config/supabaseClient.js");
+
+        if (!serviceSupabase) {
+            return res.status(500).json({
+                message:
+                    "Server admin database client is not configured."
+            });
+        }
+
+        const { data, error } =
+            await ProfileModel.getAllUsers(
+                serviceSupabase
+            );
+
+        if (error) {
+            return res.status(400).json({
+                message:
+                    "Failed to load users.",
+                error: error.message
+            });
+        }
+
+        return res.json(data || []);
+
+    } catch (error) {
+
+        console.error(
+            "Get All Users Error:",
+            error
+        );
+
+        return res.status(500).json({
+            message:
+                "Failed to load users."
+        });
+    }
+};

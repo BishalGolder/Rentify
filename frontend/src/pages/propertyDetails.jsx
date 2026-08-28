@@ -36,7 +36,20 @@ function PropertyDetails() {
     const [comment, setComment] = useState("");
     const [submittingReview, setSubmittingReview] = useState(false);
     const [reviewMessage, setReviewMessage] = useState("");
- 
+    // Reporting System
+    const [showReportForm, setShowReportForm] = useState(false);
+
+    const [reportCategory, setReportCategory] =
+        useState("fraudulent_listing");
+
+    const [reportDescription, setReportDescription] =
+        useState("");
+
+    const [submittingReport, setSubmittingReport] =
+        useState(false);
+
+    const [reportMessage, setReportMessage] =
+        useState("");
     const storedUser = JSON.parse(localStorage.getItem("user") || "null");
     const canReview = storedUser?.role === "guest";
 
@@ -174,22 +187,19 @@ function PropertyDetails() {
                 return;
             }
 
-            // Validate comment
             if (!comment.trim()) {
                 setReviewMessage("Please write a review.");
                 return;
             }
- 
+
             const response = await fetch(
                 "http://localhost:5000/api/reviews",
                 {
                     method: "POST",
- 
                     headers: {
                         "Content-Type": "application/json",
                         Authorization: `Bearer ${token}`
                     },
- 
                     body: JSON.stringify({
                         property_id: id,
                         rating: Number(rating),
@@ -198,47 +208,100 @@ function PropertyDetails() {
                 }
             );
 
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.message || "Review submission failed."
+                );
+            }
+
+            setReviewMessage("Review submitted successfully!");
+            setComment("");
+            setRating(5);
+
+            await fetchReviews();
+            await fetchProperty();
+
+        } catch (error) {
+            console.error("Review submission error:", error);
+
+            setReviewMessage(
+                error.message || "Review submission failed."
+            );
+
+        } finally {
+            setSubmittingReview(false);
+        }
+    };
+
+    const handleReportSubmit = async (e) => {
+        e.preventDefault();
+
+        try {
+            setSubmittingReport(true);
+            setReportMessage("");
+
+            const token = localStorage.getItem("token");
+
+            if (!token) {
+                setReportMessage(
+                    "Please login before submitting a report."
+                );
+                return;
+            }
+
+            if (!reportDescription.trim()) {
+                setReportMessage(
+                    "Please describe the reason for your report."
+                );
+                return;
+            }
+
+            const response = await fetch(
+                "http://localhost:5000/api/reports",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        property_id: id,
+                        category: reportCategory,
+                        description: reportDescription.trim()
+                    })
+                }
+            );
 
             const data = await response.json();
 
             if (!response.ok) {
                 throw new Error(
-                    data.message ||
-                    "Review submission failed."
+                    data.message || "Report submission failed."
                 );
             }
 
-            setReviewMessage(
-                "Review submitted successfully!"
+            setReportMessage(
+                "Report submitted successfully. Our admin team will review it."
             );
 
-            setComment("");
-            setRating(5);
-
-            // Refresh everything after successful review
-            await fetchReviews();
-            await fetchProperty();
-
+            setReportDescription("");
+            setReportCategory("fraudulent_listing");
 
         } catch (error) {
+            console.error("Report submission error:", error);
 
-            console.error(
-                "Review submission error:",
-                error
-            );
-
-            setReviewMessage(
-                error.message ||
-                "Review submission failed."
+            setReportMessage(
+                error.message || "Report submission failed."
             );
 
         } finally {
-
-            setSubmittingReview(false);
+            setSubmittingReport(false);
         }
     };
-
-    if (loading) {
+           
+   if (loading) {
 
         return (
 
@@ -622,6 +685,161 @@ function PropertyDetails() {
                                 </button>
                             );
                         })()}
+
+
+                    </div>
+                    {/* Reporting Section */}
+                    <div
+                        style={{
+                            borderTop: "1px solid var(--border-color)",
+                            marginTop: "2rem",
+                            paddingTop: "1.5rem"
+                        }}
+                    >
+                        <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => {
+                                setShowReportForm(!showReportForm);
+                                setReportMessage("");
+                            }}
+                        >
+                           Report this property
+                        </button>
+
+
+
+                        {showReportForm && (
+
+                            <form
+                                onSubmit={handleReportSubmit}
+                                style={{
+                                    marginTop: "1rem",
+                                    padding: "1rem",
+                                    border: "1px solid var(--border-color)",
+                                    borderRadius: "8px"
+                                }}
+                            >
+
+                                <h4>
+                                    Report Property
+                                </h4>
+
+
+                                <label>
+                                    Reason
+                                </label>
+
+
+                                <select
+                                    value={reportCategory}
+                                    onChange={(e) =>
+                                        setReportCategory(e.target.value)
+                                    }
+                                    style={{
+                                        width: "100%",
+                                        padding: "10px",
+                                        marginTop: "0.5rem",
+                                        marginBottom: "1rem"
+                                    }}
+                                >
+
+                                    <option value="fraudulent_listing">
+                                        Fraudulent Listing
+                                    </option>
+
+                                    <option value="inappropriate_content">
+                                        Inappropriate Content
+                                    </option>
+
+                                    <option value="policy_violation">
+                                        Policy Violation
+                                    </option>
+
+                                    <option value="other">
+                                        Other
+                                    </option>
+
+                                </select>
+
+
+                                <label>
+                                    Description
+                                </label>
+
+
+                                <textarea
+                                    value={reportDescription}
+                                    onChange={(e) =>
+                                        setReportDescription(e.target.value)
+                                    }
+                                    placeholder="Explain why you are reporting this property..."
+                                    required
+                                    style={{
+                                        width: "100%",
+                                        minHeight: "100px",
+                                        padding: "10px",
+                                        marginTop: "0.5rem",
+                                        boxSizing: "border-box"
+                                    }}
+                                />
+
+
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        gap: "0.75rem",
+                                        marginTop: "0.75rem",
+                                        flexWrap: "wrap"
+                                    }}
+                                >
+
+                                    <button
+                                        type="submit"
+                                        className="btn btn-danger"
+                                        disabled={submittingReport}
+                                    >
+                                        {
+                                            submittingReport
+                                                ? "Submitting..."
+                                                : "Submit Report"
+                                        }
+                                    </button>
+
+
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        onClick={() => {
+                                            setShowReportForm(false);
+                                            setReportMessage("");
+                                            setReportDescription("");
+                                            setReportCategory(
+                                                "fraudulent_listing"
+                                            );
+                                        }}
+                                    >
+                                        Cancel
+                                    </button>
+
+                                </div>
+
+
+                                {reportMessage && (
+
+                                    <p
+                                        style={{
+                                            marginTop: "0.75rem"
+                                        }}
+                                    >
+                                        {reportMessage}
+                                    </p>
+
+                                )}
+
+                            </form>
+
+                        )}
 
                     </div>
 

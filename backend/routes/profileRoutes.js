@@ -8,7 +8,8 @@ import {
     getMyProfile,
     updateProfile,
     deleteProfile,
-    changeRole
+    changeRole,
+    getAllUsers
 } from "../controllers/profileController.js";
 
 const router = express.Router();
@@ -20,6 +21,8 @@ router.get("/me", authMiddleware, getMyProfile);
 router.put("/me", authMiddleware, updateProfile);
 
 router.delete("/me", authMiddleware, deleteProfile);
+
+router.get("/admin/users", authMiddleware, adminMiddleware, getAllUsers);
 
 router.put("/:id/role", authMiddleware, adminMiddleware, changeRole);
 

@@ -71,3 +71,21 @@ export const changeRole = async (userId, role, client = supabase) => {
 
     return { data, error };
 };
+/*
+    Get All Users For Admin
+*/
+export const getAllUsers = async (client) => {
+
+    const { data, error } = await client
+        .from("profiles")
+        .select(`
+            id,
+            full_name,
+            phone,
+            avatar_url,
+            role
+        `)
+        .order("full_name", { ascending: true });
+
+    return { data, error };
+};
