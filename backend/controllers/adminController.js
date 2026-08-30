@@ -17,77 +17,65 @@ export const getAdminSummary = async (req, res) => {
 
 
         const [
-            usersResult,
+            hostsResult,
+            guestsResult,
             propertiesResult,
             pendingResult,
-            bookingsResult
+            bookingsResult,
+            cancelledResult,
+            completedResult
         ] = await Promise.all([
 
             serviceSupabase
                 .from("profiles")
-                .select("id", {
-                    count: "exact",
-                    head: true
-                }),
+                .select("id", { count: "exact", head: true })
+                .eq("role", "host"),
+
+            serviceSupabase
+                .from("profiles")
+                .select("id", { count: "exact", head: true })
+                .eq("role", "guest"),
 
             serviceSupabase
                 .from("properties")
-                .select("id", {
-                    count: "exact",
-                    head: true
-                }),
+                .select("id", { count: "exact", head: true }),
 
             serviceSupabase
                 .from("properties")
-                .select("id", {
-                    count: "exact",
-                    head: true
-                })
-                .eq(
-                    "verification_status",
-                    "pending"
-                ),
+                .select("id", { count: "exact", head: true })
+                .eq("verification_status", "pending"),
 
             serviceSupabase
                 .from("bookings")
-                .select("id", {
-                    count: "exact",
-                    head: true
-                })
+                .select("id", { count: "exact", head: true }),
+
+            serviceSupabase
+                .from("bookings")
+                .select("id", { count: "exact", head: true })
+                .eq("status", "cancelled"),
+
+            serviceSupabase
+                .from("bookings")
+                .select("id", { count: "exact", head: true })
+                .eq("status", "completed")
         ]);
 
-
-        if (usersResult.error) {
-            throw usersResult.error;
+        for (const result of [
+            hostsResult, guestsResult, propertiesResult,
+            pendingResult, bookingsResult, cancelledResult, completedResult
+        ]) {
+            if (result.error) { throw result.error; }
         }
-
-        if (propertiesResult.error) {
-            throw propertiesResult.error;
-        }
-
-        if (pendingResult.error) {
-            throw pendingResult.error;
-        }
-
-        if (bookingsResult.error) {
-            throw bookingsResult.error;
-        }
-
 
         return res.json({
-            totalUsers:
-                usersResult.count || 0,
-
-            totalProperties:
-                propertiesResult.count || 0,
-
-            pendingProperties:
-                pendingResult.count || 0,
-
-            totalBookings:
-                bookingsResult.count || 0
+            totalHosts: hostsResult.count || 0,
+            totalGuests: guestsResult.count || 0,
+            totalProperties: propertiesResult.count || 0,
+            pendingProperties: pendingResult.count || 0,
+            totalBookings: bookingsResult.count || 0,
+            cancelledBookings: cancelledResult.count || 0,
+            completedBookings: completedResult.count || 0
         });
-
 
     } catch (error) {
 

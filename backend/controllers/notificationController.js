@@ -12,3 +12,9 @@ export const markNotificationRead = async (req, res) => {
     if (error) return res.status(400).json(error);
     res.json({ message: "Marked as read.", notification: data });
 };
+
+export const markAllNotificationsRead = async (req, res) => {
+    const { error } = await NotificationModel.markAllAsRead(req.user.id, req.supabase);
+    if (error) return res.status(400).json(error);
+    res.json({ message: "All notifications marked as read." });
+};

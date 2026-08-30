@@ -3,14 +3,15 @@ import express from "express";
 import authMiddleware from "../middleware/authMiddleware.js";
 import guestMiddleware from "../middleware/guestMiddleware.js";
 import hostMiddleware from "../middleware/hostMiddleware.js";
-
+import adminMiddleware from "../middleware/adminMiddleware.js";
 import {
     getPropertyAvailability,
     createBooking,
     getMyBookings,
     getPropertyBookings,
     getHostRevenue,
-    cancelBooking
+    cancelBooking,
+    getAllBookingsForAdmin
 } from "../controllers/bookingController.js";
 
 
@@ -63,7 +64,17 @@ router.get("/property/:propertyId", authMiddleware, hostMiddleware, getPropertyB
 CANCEL BOOKING (guest only)
 =====================================================
 */
-
+/*
+=====================================================
+GET ALL BOOKINGS (admin only)
+=====================================================
+*/
+router.get(
+    "/admin/all",
+    authMiddleware,
+    adminMiddleware,
+    getAllBookingsForAdmin
+);
 router.put("/:id/cancel", authMiddleware, guestMiddleware, cancelBooking);
 
 router.get("/host/revenue", authMiddleware, hostMiddleware, getHostRevenue);

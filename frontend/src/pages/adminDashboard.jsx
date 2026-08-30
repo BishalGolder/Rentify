@@ -34,11 +34,15 @@ function AdminDashboard() {
 
     const [summary, setSummary] =
         useState({
-            totalUsers: 0,
+            totalHosts: 0,
+            totalGuests: 0,
             totalProperties: 0,
             pendingProperties: 0,
-            totalBookings: 0
+            totalBookings: 0,
+            cancelledBookings: 0,
+            completedBookings: 0
         });
+
 
 
     /*
@@ -55,6 +59,14 @@ function AdminDashboard() {
 
     const [rejectReason, setRejectReason] =
         useState("");
+
+    // New state for all properties and subtab
+    const [allProperties, setAllProperties] = useState([]);
+    const [propertiesLoading, setPropertiesLoading] = useState(false);
+    const [propertiesSubTab, setPropertiesSubTab] = useState("pending");
+
+    // For lock/unlock
+    const [lockingId, setLockingId] = useState(null);
 
 
     /*
@@ -77,6 +89,15 @@ function AdminDashboard() {
         useState([]);
 
     const [reports, setReports] = useState([]);
+
+    /*
+    =====================================================
+    WALLET RECHARGE STATE
+    =====================================================
+    */
+
+    const [rechargeRequests, setRechargeRequests] = useState([]);
+
 
     /*
     =====================================================
@@ -345,6 +366,89 @@ function AdminDashboard() {
             : []
     );
 };
+
+    /*
+    =====================================================
+    FETCH RECHARGE REQUESTS (LAZY LOAD)
+    =====================================================
+    */
+
+    const loadRechargeRequests = async () => {
+
+        const res = await fetch(
+            "http://localhost:5000/api/wallet/admin/recharge-requests",
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            }
+        );
+
+        if (res.ok) {
+
+            const data = await res.json();
+
+            setRechargeRequests(
+                Array.isArray(data) ? data : []
+            );
+
+        } else {
+
+            setRechargeRequests([]);
+
+        }
+    };
+
+    /*
+    =====================================================
+    DECIDE RECHARGE REQUEST
+    =====================================================
+    */
+
+    const decideRecharge = async (id, action) => {
+ 
+        const res = await fetch(
+            `http://localhost:5000/api/wallet/admin/recharge-requests/${id}/${action}`,
+            {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({})
+            }
+        );
+
+        if (res.ok) {
+
+            setRechargeRequests((prev) =>
+                prev.filter((r) => r.id !== id)
+            );
+
+        } else {
+
+            alert("Action failed.");
+
+        }
+    };
+
+    /*
+    =====================================================
+    LAZY LOAD RECHARGE REQUESTS ON TAB SWITCH
+    =====================================================
+    */
+
+    useEffect(() => {
+
+        if (activeSection === "wallet" && token) {
+
+            loadRechargeRequests();
+
+        }
+
+    }, [activeSection, token]);
+
+
     /*
     =====================================================
     VERIFY / REJECT PROPERTY
@@ -427,6 +531,120 @@ function AdminDashboard() {
         }
 
     };
+
+    /*
+    =====================================================
+    ADMIN DELETE PROPERTY
+    =====================================================
+    */
+
+    const handleAdminDeleteProperty = async (propertyId, propertyTitle) => {
+        if (!window.confirm(`Delete "${propertyTitle}"? This cannot be undone.`)) return;
+
+        try {
+            const res = await fetch(
+                `http://localhost:5000/api/properties/admin/${propertyId}`,
+                {
+                    method: "DELETE",
+                    headers: { Authorization: `Bearer ${token}` }
+                }
+            );
+
+            if (res.ok) {
+                // Remove from pending and all properties lists
+                setPending((prev) => prev.filter((p) => p.id !== propertyId));
+                setAllProperties((prev) => prev.filter((p) => p.id !== propertyId));
+                // Refresh summary to update counts
+                await fetchSummary();
+            } else {
+                const data = await res.json();
+                alert(data.message || "Failed to delete property.");
+            }
+        } catch (error) {
+            alert("Network error while deleting property.");
+        }
+    };
+
+    /*
+    =====================================================
+    TOGGLE PROPERTY LOCK
+    =====================================================
+    */
+
+    const handleToggleLock = async (propertyId, currentLock, propertyTitle) => {
+        const action = currentLock ? "unlock" : "lock";
+        if (!window.confirm(`Are you sure you want to ${action} "${propertyTitle}"?`)) return;
+        setLockingId(propertyId);
+        try {
+            const res = await fetch(`http://localhost:5000/api/properties/admin/${propertyId}/lock`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ lock: !currentLock })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                // Update allProperties state
+                setAllProperties(prev =>
+                    prev.map(p =>
+                        p.id === propertyId ? { ...p, is_locked: !currentLock } : p
+                    )
+                );
+                // Also update pending if this property is in pending (shouldn't be, but just in case)
+                setPending(prev =>
+                    prev.map(p =>
+                        p.id === propertyId ? { ...p, is_locked: !currentLock } : p
+                    )
+                );
+            } else {
+                const data = await res.json();
+                alert(data.message || `Failed to ${action} property.`);
+            }
+        } catch (error) {
+            alert("Network error while toggling lock.");
+        } finally {
+            setLockingId(null);
+        }
+    };
+
+    /*
+    =====================================================
+    LOAD ALL PROPERTIES (including locked)
+    =====================================================
+    */
+
+    const loadAllProperties = async () => {
+        setPropertiesLoading(true);
+        try {
+            const res = await fetch("http://localhost:5000/api/properties/admin/all", {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setAllProperties(data);
+            } else {
+                const data = await res.json().catch(() => ({}));
+                console.error("Failed to load all properties:", data.message || res.status);
+                alert(data.message || "Failed to load properties. Please try again.");
+            }
+
+        } catch (err) {
+            console.error("Load all properties error:", err);
+        } finally {
+            setPropertiesLoading(false);
+        }
+    };
+
+    // Load all properties when subtab switches to "all"
+    useEffect(() => {
+        if (activeSection === "verification" && propertiesSubTab === "all") {
+            loadAllProperties();
+        }
+    }, [activeSection, propertiesSubTab]);
 
 
     /*
@@ -674,8 +892,9 @@ function AdminDashboard() {
                             )
                         }
                     >
-                        Verification
+                        Properties
                     </button>
+
 
 
                     <button
@@ -713,6 +932,18 @@ function AdminDashboard() {
                         Reports
                     </button>
 
+                    {/* NEW: Wallet Recharges button */}
+                    <button
+                        className="btn btn-secondary"
+                        onClick={() =>
+                            setActiveSection(
+                                "wallet"
+                            )
+                        }
+                    >
+                        Wallet Recharges
+                    </button>
+
                 </div>
 
 
@@ -742,7 +973,7 @@ function AdminDashboard() {
 
                             <div className="ui-card">
                                 <h3>
-                                    Users
+                                    Total Users
                                 </h3>
 
                                 <div
@@ -753,10 +984,47 @@ function AdminDashboard() {
                                             "bold"
                                     }}
                                 >
-                                    {
-                                        summary.totalUsers
-                                    }
+                                    {summary.totalHosts + summary.totalGuests}
                                 </div>
+                            </div>
+
+
+                            <div className="ui-card">
+
+                                <h3>
+                                    Hosts
+                                </h3>
+
+                                <div
+                                    style={{
+                                        fontSize:
+                                            "2rem",
+                                        fontWeight:
+                                            "bold"
+                                    }}
+                                >
+                                    {summary.totalHosts}
+                                </div>
+
+                            </div>
+
+                            <div className="ui-card">
+
+                                <h3>
+                                    Guests
+                                </h3>
+
+                                <div
+                                    style={{
+                                        fontSize:
+                                            "2rem",
+                                        fontWeight:
+                                            "bold"
+                                    }}
+                                >
+                                    {summary.totalGuests}
+                                </div>
+
                             </div>
 
 
@@ -774,9 +1042,7 @@ function AdminDashboard() {
                                             "bold"
                                     }}
                                 >
-                                    {
-                                        summary.totalProperties
-                                    }
+                                    {summary.totalProperties}
                                 </div>
 
                             </div>
@@ -796,9 +1062,7 @@ function AdminDashboard() {
                                             "bold"
                                     }}
                                 >
-                                    {
-                                        summary.pendingProperties
-                                    }
+                                    {summary.pendingProperties}
                                 </div>
 
                             </div>
@@ -807,7 +1071,7 @@ function AdminDashboard() {
                             <div className="ui-card">
 
                                 <h3>
-                                    Bookings
+                                    Total Bookings
                                 </h3>
 
                                 <div
@@ -818,9 +1082,45 @@ function AdminDashboard() {
                                             "bold"
                                     }}
                                 >
-                                    {
-                                        summary.totalBookings
-                                    }
+                                    {summary.totalBookings}
+                                </div>
+
+                            </div>
+
+                            <div className="ui-card">
+
+                                <h3>
+                                    Cancelled Bookings
+                                </h3>
+
+                                <div
+                                    style={{
+                                        fontSize:
+                                            "2rem",
+                                        fontWeight:
+                                            "bold"
+                                    }}
+                                >
+                                    {summary.cancelledBookings}
+                                </div>
+
+                            </div>
+
+                            <div className="ui-card">
+
+                                <h3>
+                                    Completed Bookings
+                                </h3>
+
+                                <div
+                                    style={{
+                                        fontSize:
+                                            "2rem",
+                                        fontWeight:
+                                            "bold"
+                                    }}
+                                >
+                                    {summary.completedBookings}
                                 </div>
 
                             </div>
@@ -841,210 +1141,304 @@ function AdminDashboard() {
                     <div>
 
                         <h2>
-                            Property Verification Queue
+                            Property Management
                         </h2>
 
-
-                        {pending.length === 0 ? (
-
-                            <p
-                                style={{
-                                    color:
-                                        "var(--text-muted)"
-                                }}
+                        {/* Subtab navigation */}
+                        <div
+                            style={{
+                                display: "flex",
+                                gap: "0.5rem",
+                                marginBottom: "1.5rem",
+                                borderBottom: "1px solid #e5e7eb",
+                                paddingBottom: "0.5rem"
+                            }}
+                        >
+                            <button
+                                className={`btn ${propertiesSubTab === "pending" ? "btn-primary" : "btn-secondary"}`}
+                                onClick={() => setPropertiesSubTab("pending")}
                             >
-                                No properties awaiting review.
-                            </p>
+                                Pending ({pending.length})
+                            </button>
+                            <button
+                                className={`btn ${propertiesSubTab === "all" ? "btn-primary" : "btn-secondary"}`}
+                                onClick={() => setPropertiesSubTab("all")}
+                            >
+                                All Properties
+                            </button>
+                        </div>
 
-                        ) : (
+                        {propertiesSubTab === "pending" && (
+                            <>
+                                {pending.length === 0 ? (
 
-                            <div className="property-grid">
+                                    <p
+                                        style={{
+                                            color:
+                                                "var(--text-muted)"
+                                        }}
+                                    >
+                                        No properties awaiting review.
+                                    </p>
 
-                                {pending.map(
-                                    (prop) => (
+                                ) : (
 
-                                        <div
-                                            key={prop.id}
-                                            className="property-card"
-                                        >
+                                    <div className="property-grid">
 
-                                            <img
-                                                src={
-                                                    prop.image_urls?.[0] ||
-                                                    "https://images.unsplash.com/photo-1564013799919-ab600027ffc6"
-                                                }
-                                                alt={
-                                                    prop.title
-                                                }
-                                                className="property-img"
-                                            />
+                                        {pending.map(
+                                            (prop) => (
 
+                                                <div
+                                                    key={prop.id}
+                                                    className="property-card"
+                                                >
 
-                                            <div className="property-info">
-
-                                                <span className="badge">
-                                                    {
-                                                        prop.property_type
-                                                    }
-                                                </span>
-
-
-                                                <div className="property-title">
-                                                    {
-                                                        prop.title
-                                                    }
-                                                </div>
-
-
-                                                <p>
-                                                    📍{" "}
-                                                    {
-                                                        prop.location
-                                                    }
-
-                                                    {
-                                                        prop.district
-                                                            ? ` — ${prop.district}`
-                                                            : ""
-                                                    }
-                                                </p>
+                                                    <img
+                                                        src={
+                                                            prop.image_urls?.[0] ||
+                                                            "https://images.unsplash.com/photo-1564013799919-ab600027ffc6"
+                                                        }
+                                                        alt={
+                                                            prop.title
+                                                        }
+                                                        className="property-img"
+                                                    />
 
 
-                                                <p>
-                                                    {
-                                                        prop.description
-                                                    }
-                                                </p>
+                                                    <div className="property-info">
 
-
-                                                <div className="property-price">
-                                                    ৳
-                                                    {
-                                                        prop.price
-                                                    }{" "}
-                                                    / night
-                                                </div>
-
-
-                                                {rejectingId === prop.id ? (
-
-                                                    <div
-                                                        style={{
-                                                            marginTop:
-                                                                "1rem"
-                                                        }}
-                                                    >
-
-                                                        <textarea
-                                                            placeholder="Reason for rejection"
-                                                            value={
-                                                                rejectReason
+                                                        <span className="badge">
+                                                            {
+                                                                prop.property_type
                                                             }
-                                                            onChange={
-                                                                (e) =>
-                                                                    setRejectReason(
-                                                                        e.target.value
-                                                                    )
+                                                        </span>
+
+
+                                                        <div className="property-title">
+                                                            {
+                                                                prop.title
                                                             }
-                                                            style={{
-                                                                width:
-                                                                    "100%",
-                                                                minHeight:
-                                                                    "80px"
-                                                            }}
-                                                        />
-
-
-                                                        <div
-                                                            style={{
-                                                                display:
-                                                                    "flex",
-                                                                gap:
-                                                                    "0.5rem",
-                                                                marginTop:
-                                                                    "0.5rem"
-                                                            }}
-                                                        >
-
-                                                            <button
-                                                                className="btn btn-danger"
-                                                                disabled={
-                                                                    !rejectReason.trim()
-                                                                }
-                                                                onClick={() =>
-                                                                    decide(
-                                                                        prop.id,
-                                                                        "rejected",
-                                                                        rejectReason.trim()
-                                                                    )
-                                                                }
-                                                            >
-                                                                Confirm Reject
-                                                            </button>
-
-
-                                                            <button
-                                                                className="btn btn-secondary"
-                                                                onClick={() => {
-                                                                    setRejectingId(
-                                                                        null
-                                                                    );
-
-                                                                    setRejectReason(
-                                                                        ""
-                                                                    );
-                                                                }}
-                                                            >
-                                                                Cancel
-                                                            </button>
-
                                                         </div>
 
+
+                                                        <p>
+                                                            📍{" "}
+                                                            {
+                                                                prop.location
+                                                            }
+
+                                                            {
+                                                                prop.district
+                                                                    ? ` — ${prop.district}`
+                                                                    : ""
+                                                            }
+                                                        </p>
+
+
+                                                        <p>
+                                                            {
+                                                                prop.description
+                                                            }
+                                                        </p>
+
+
+                                                        <div className="property-price">
+                                                            ৳
+                                                            {
+                                                                prop.price
+                                                            }{" "}
+                                                            / night
+                                                        </div>
+
+
+                                                        {rejectingId === prop.id ? (
+
+                                                            <div
+                                                                style={{
+                                                                    marginTop:
+                                                                        "1rem"
+                                                                }}
+                                                            >
+
+                                                                <textarea
+                                                                    placeholder="Reason for rejection"
+                                                                    value={
+                                                                        rejectReason
+                                                                    }
+                                                                    onChange={
+                                                                        (e) =>
+                                                                            setRejectReason(
+                                                                                e.target.value
+                                                                            )
+                                                                    }
+                                                                    style={{
+                                                                        width:
+                                                                            "100%",
+                                                                        minHeight:
+                                                                            "80px"
+                                                                    }}
+                                                                />
+
+
+                                                                <div
+                                                                    style={{
+                                                                        display:
+                                                                            "flex",
+                                                                        gap:
+                                                                            "0.5rem",
+                                                                        marginTop:
+                                                                            "0.5rem"
+                                                                    }}
+                                                                >
+
+                                                                    <button
+                                                                        className="btn btn-danger"
+                                                                        disabled={
+                                                                            !rejectReason.trim()
+                                                                        }
+                                                                        onClick={() =>
+                                                                            decide(
+                                                                                prop.id,
+                                                                                "rejected",
+                                                                                rejectReason.trim()
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        Confirm Reject
+                                                                    </button>
+
+
+                                                                    <button
+                                                                        className="btn btn-secondary"
+                                                                        onClick={() => {
+                                                                            setRejectingId(
+                                                                                null
+                                                                            );
+
+                                                                            setRejectReason(
+                                                                                ""
+                                                                            );
+                                                                        }}
+                                                                    >
+                                                                        Cancel
+                                                                    </button>
+
+                                                                </div>
+
+                                                            </div>
+
+                                                        ) : (
+
+                                                            <div
+                                                                className="property-actions"
+                                                                style={{
+                                                                    display: "flex",
+                                                                    flexWrap: "wrap",
+                                                                    gap: "0.5rem",
+                                                                    marginTop: "1rem"
+                                                                }}
+                                                            >
+
+                                                                <button
+                                                                    className="btn btn-primary"
+                                                                    onClick={() =>
+                                                                        decide(
+                                                                            prop.id,
+                                                                            "verified"
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Approve
+                                                                </button>
+
+
+                                                                <button
+                                                                    className="btn btn-danger"
+                                                                    onClick={() =>
+                                                                        setRejectingId(
+                                                                            prop.id
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Reject
+                                                                </button>
+
+                                                                {/* Admin delete button */}
+                                                                <button
+                                                                    className="btn btn-danger"
+                                                                    style={{ backgroundColor: "#dc2626" }}
+                                                                    onClick={() =>
+                                                                        handleAdminDeleteProperty(prop.id, prop.title)
+                                                                    }
+                                                                >
+                                                                    Delete Property
+                                                                </button>
+
+                                                            </div>
+
+                                                        )}
+
                                                     </div>
 
-                                                ) : (
+                                                </div>
 
-                                                    <div
-                                                        className="property-actions"
-                                                    >
+                                            )
+                                        )}
 
+                                    </div>
+
+                                )}
+                            </>
+                        )}
+
+                        {propertiesSubTab === "all" && (
+                            <>
+                                {propertiesLoading ? (
+                                    <p>Loading properties...</p>
+                                ) : allProperties.length === 0 ? (
+                                    <p style={{ color: "var(--text-muted)" }}>No properties found.</p>
+                                ) : (
+                                    <div className="property-grid">
+                                        {allProperties.map((prop) => (
+                                            <div key={prop.id} className="property-card">
+                                                <img
+                                                    src={prop.image_urls?.[0] || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6"}
+                                                    alt={prop.title}
+                                                    className="property-img"
+                                                />
+                                                <div className="property-info">
+                                                    <div className="property-title">{prop.title}</div>
+                                                    <p>📍 {prop.location}</p>
+                                                    <div className="property-price">৳{prop.price} / night</div>
+                                                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.5rem" }}>
+                                                        <span className="badge">{prop.verification_status}</span>
+                                                        {prop.is_locked ? (
+                                                            <span className="badge" style={{ background: "#fee2e2", color: "#b91c1c" }}>🔒 Locked</span>
+                                                        ) : (
+                                                            <span className="badge" style={{ background: "#dcfce7", color: "#166534" }}>🔓 Unlocked</span>
+                                                        )}
+                                                    </div>
+                                                    <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", flexWrap: "wrap" }}>
                                                         <button
-                                                            className="btn btn-primary"
-                                                            onClick={() =>
-                                                                decide(
-                                                                    prop.id,
-                                                                    "verified"
-                                                                )
-                                                            }
+                                                            className="btn btn-secondary"
+                                                            onClick={() => handleToggleLock(prop.id, prop.is_locked, prop.title)}
+                                                            disabled={lockingId === prop.id}
                                                         >
-                                                            Approve
+                                                            {lockingId === prop.id ? "Processing..." : (prop.is_locked ? "Unlock" : "Lock")}
                                                         </button>
-
-
                                                         <button
                                                             className="btn btn-danger"
-                                                            onClick={() =>
-                                                                setRejectingId(
-                                                                    prop.id
-                                                                )
-                                                            }
+                                                            onClick={() => handleAdminDeleteProperty(prop.id, prop.title)}
                                                         >
-                                                            Reject
+                                                            Delete
                                                         </button>
-
                                                     </div>
-
-                                                )}
-
+                                                </div>
                                             </div>
-
-                                        </div>
-
-                                    )
+                                        ))}
+                                    </div>
                                 )}
-
-                            </div>
-
+                            </>
                         )}
 
                     </div>
@@ -1852,6 +2246,140 @@ function AdminDashboard() {
 
                                         </div>
 
+                                    </div>
+
+                                ))}
+
+                            </div>
+
+                        )}
+
+                    </div>
+
+                )}
+
+                {/* ===============================
+                    WALLET RECHARGES
+                =============================== */}
+
+                {activeSection === "wallet" && (
+
+                    <div>
+
+                        <div
+                            style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                gap: "1rem",
+                                flexWrap: "wrap",
+                                marginBottom: "1rem"
+                            }}
+                        >
+                            <div>
+                                <h2 style={{ marginBottom: "0.25rem" }}>
+                                    Wallet Recharges
+                                </h2>
+
+                                <p
+                                    style={{
+                                        margin: 0,
+                                        color: "var(--text-muted)"
+                                    }}
+                                >
+                                    Approve or reject guest recharge requests.
+                                </p>
+                            </div>
+
+                            <div
+                                style={{
+                                    fontWeight: "600",
+                                    color: "var(--text-muted)"
+                                }}
+                            >
+                                Pending requests: {rechargeRequests.length}
+                            </div>
+                        </div>
+
+                        {rechargeRequests.length === 0 ? (
+
+                            <p
+                                style={{
+                                    color: "var(--text-muted)"
+                                }}
+                            >
+                                No pending recharge requests.
+                            </p>
+
+                        ) : (
+
+                            <div
+                                style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: "1rem"
+                                }}
+                            >
+
+                                {rechargeRequests.map((request) => (
+
+                                    <div
+                                        key={request.id}
+                                        style={{
+                                            border: "1px solid #e5e7eb",
+                                            borderRadius: "12px",
+                                            padding: "1rem",
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            alignItems: "center",
+                                            flexWrap: "wrap",
+                                            gap: "0.75rem"
+                                        }}
+                                    >
+                                        <div>
+                                            <strong>
+                                                {request.profiles?.full_name || "Guest"}
+                                            </strong>
+                                            {" — "}
+                                            ৳{request.amount}
+                                            <div
+                                                style={{
+                                                    fontSize: "0.85rem",
+                                                    color: "var(--text-muted)"
+                                                }}
+                                            >
+                                                {request.created_at
+                                                    ? new Date(
+                                                        request.created_at
+                                                    ).toLocaleString()
+                                                    : "—"}
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                gap: "0.5rem"
+                                            }}
+                                        >
+                                            <button
+                                                className="btn btn-primary"
+                                                onClick={() =>
+                                                    decideRecharge(request.id, "approve")
+                                                }
+                                            >
+                                                Approve
+                                            </button>
+
+                                            <button
+                                                className="btn btn-danger"
+                                                onClick={() =>
+                                                    decideRecharge(request.id, "reject")
+                                                }
+                                            >
+                                                Reject
+                                            </button>
+                                        </div>
                                     </div>
 
                                 ))}

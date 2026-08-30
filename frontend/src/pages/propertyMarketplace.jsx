@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import PropertyCard from "../components/propertyCard";
 import "../styles/propertyMarketplace.css";
 import RecentlyViewed from "../components/recentlyViewed";
@@ -17,6 +18,8 @@ function PropertyMarketplace() {
     const [minBedrooms, setMinBedrooms] = useState("");
     const [minBathrooms, setMinBathrooms] = useState("");
     const [minGuests, setMinGuests] = useState("");
+
+    const navigate = useNavigate();
 
     // Fetch properties
     useEffect(() => {
@@ -172,6 +175,27 @@ function PropertyMarketplace() {
                     <option value="price_low">Price: Low → High</option>
                     <option value="price_high">Price: High → Low</option>
                 </select>
+
+                {/* Map Search Button */}
+<button
+    onClick={() => navigate("/map-search")}
+    style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "0.5rem",
+        background: "var(--primary-color)",
+        color: "white",
+        border: "none",
+        borderRadius: "8px",
+        padding: "0.6rem 1.2rem",
+        fontSize: "1rem",
+        fontWeight: 600,
+        cursor: "pointer"
+    }}
+>
+    📍 Search on Map
+</button>
+
             </div>
 
             {/* Property List */}

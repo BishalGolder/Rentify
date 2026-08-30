@@ -10,7 +10,7 @@ import availabilityRoutes from "./routes/availabilityRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
-
+import walletRoutes from "./routes/walletRoutes.js";
 const app = express();
 
 app.use(cors());
@@ -26,6 +26,6 @@ app.use("/api/availability", availabilityRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/reports", reportRoutes);
-
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.use("/api/wallet", walletRoutes);

@@ -186,3 +186,28 @@ export const getAllUsers = async (req, res) => {
         });
     }
 };
+
+export const adminDeleteProperty = async (req, res) => {
+    try {
+        const { id } = req.params;
+ 
+        const { data, error } = await req.supabase
+            .from("properties")
+            .delete()
+            .eq("id", id)
+            .select()
+            .single();
+ 
+        if (error) {
+            return res.status(400).json({ message: error.message });
+        }
+ 
+        return res.json({
+            message: "Property deleted successfully.",
+            property: data
+        });
+    } catch (error) {
+        console.error("Admin Delete Property Error:", error);
+        return res.status(500).json({ message: "Failed to delete property." });
+    }
+};

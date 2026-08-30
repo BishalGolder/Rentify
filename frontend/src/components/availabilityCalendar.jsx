@@ -164,18 +164,27 @@ function AvailabilityCalendar({
     }, [viewMonth, effectiveMinDate]);
 
 
-    const emitChange = (nextCheckIn, nextCheckOut) => {
-
+    const emitChange = (checkIn, checkOut) => {
         if (onRangeChange) {
-
-            onRangeChange({
-                checkIn: nextCheckIn,
-                checkOut: nextCheckOut
-            });
-
+            let dayCount = 0;
+ 
+            if (checkIn && checkOut) {
+                // Count every calendar date from checkIn through checkOut inclusive
+                const start = new Date(checkIn);
+                const end = new Date(checkOut);
+                const diffDays = Math.round((end - start) / (1000 * 60 * 60 * 24));
+                // diffDays=0 means same day selected (single date): 1 day
+                // diffDays=1 means two adjacent dates selected: 2 days
+                dayCount = diffDays + 1;
+            } else if (checkIn) {
+                // Only check-in selected so far: 1 day
+                dayCount = 1;
+            }
+ 
+            onRangeChange({ checkIn, checkOut, dayCount });
         }
-
     };
+
 
 
     const handleDayClick = (dateString) => {

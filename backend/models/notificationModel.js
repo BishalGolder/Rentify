@@ -33,3 +33,13 @@ export const markAsRead = async (notificationId, userId, client = supabase) => {
         .single();
     return { data, error };
 };
+
+export const markAllAsRead = async (userId, client = supabase) => {
+    const { data, error } = await client
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("user_id", userId)
+        .eq("is_read", false)
+        .select();
+    return { data, error };
+};

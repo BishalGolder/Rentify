@@ -7,6 +7,7 @@ import supabase from "../config/supabaseClient.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import hostMiddleware from "../middleware/hostMiddleware.js";
 import adminMiddleware from "../middleware/adminMiddleware.js";
+import adminPropertyMiddleware from "../middleware/adminPropertyMiddleware.js";
 
 import {
     createProperty,
@@ -18,6 +19,10 @@ import {
     cancelPendingProperty,
     getPendingProperties,
     verifyProperty,
+    getNearbyProperties,
+    adminDeleteProperty,
+    adminTogglePropertyLock,
+    getAllPropertiesForAdmin
 } from "../controllers/propertyController.js";
 
 
@@ -96,6 +101,8 @@ router.get(
 );
 
 
+
+
 /*
 =====================================================
 SEARCH / FILTER / SORT
@@ -139,7 +146,8 @@ router.get(
                     .eq(
                         "verification_status",
                         "verified"
-                    );
+                    )
+                    .or('is_locked.is.null,is_locked.eq.false');
 
 
             /*
@@ -454,6 +462,23 @@ router.get(
 
 );
 
+/*
+=====================================================
+GET NEARBY PROPERTIES
+=====================================================
+
+Public route to find properties within a radius.
+
+Query parameters:
+  - lat (required)
+  - lng (required)
+  - radius (optional, defaults to 5 km)
+
+=====================================================
+*/
+
+router.get("/nearby", getNearbyProperties);
+
 
 /*
 =====================================================
@@ -518,6 +543,45 @@ router.put(
 
     verifyProperty
 
+);
+
+
+/*
+=====================================================
+ADMIN
+DELETE PROPERTY (Hard delete)
+=====================================================
+
+Admin can permanently delete any property.
+
+=====================================================
+*/
+
+router.delete(
+    "/admin/:id",
+    authMiddleware,
+    adminPropertyMiddleware,
+    adminDeleteProperty
+);
+
+
+/*
+=====================================================
+ADMIN
+LOCK / UNLOCK PROPERTY
+=====================================================
+
+Admin can toggle the lock status of a property.
+Locked properties are hidden from guest searches.
+
+=====================================================
+*/
+
+router.put(
+    "/admin/:id/lock",
+    authMiddleware,
+    adminPropertyMiddleware,
+    adminTogglePropertyLock
 );
 
 
@@ -630,7 +694,7 @@ router.put(
 
 /*
 =====================================================
-DELETE PROPERTY
+DELETE PROPERTY (Host only)
 =====================================================
 */
 
@@ -645,6 +709,8 @@ router.delete(
     deleteProperty
 
 );
+
+router.get("/admin/all", authMiddleware, adminPropertyMiddleware, getAllPropertiesForAdmin);
 
 
 export default router;

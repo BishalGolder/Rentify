@@ -36,7 +36,7 @@ function PropertyDetails() {
     const [comment, setComment] = useState("");
     const [submittingReview, setSubmittingReview] = useState(false);
     const [reviewMessage, setReviewMessage] = useState("");
-    // Reporting System
+ // Reporting System
     const [showReportForm, setShowReportForm] = useState(false);
 
     const [reportCategory, setReportCategory] =
@@ -187,19 +187,22 @@ function PropertyDetails() {
                 return;
             }
 
+            // Validate comment
             if (!comment.trim()) {
                 setReviewMessage("Please write a review.");
                 return;
             }
-
+ 
             const response = await fetch(
                 "http://localhost:5000/api/reviews",
                 {
                     method: "POST",
+ 
                     headers: {
                         "Content-Type": "application/json",
                         Authorization: `Bearer ${token}`
                     },
+ 
                     body: JSON.stringify({
                         property_id: id,
                         rating: Number(rating),
@@ -208,100 +211,122 @@ function PropertyDetails() {
                 }
             );
 
+
             const data = await response.json();
 
             if (!response.ok) {
                 throw new Error(
-                    data.message || "Review submission failed."
+                    data.message ||
+                    "Review submission failed."
                 );
             }
 
-            setReviewMessage("Review submitted successfully!");
+            setReviewMessage(
+                "Review submitted successfully!"
+            );
+
             setComment("");
             setRating(5);
 
+            // Refresh everything after successful review
             await fetchReviews();
             await fetchProperty();
 
+
         } catch (error) {
-            console.error("Review submission error:", error);
+
+            console.error(
+                "Review submission error:",
+                error
+            );
 
             setReviewMessage(
-                error.message || "Review submission failed."
+                error.message ||
+                "Review submission failed."
             );
 
         } finally {
+
             setSubmittingReview(false);
         }
     };
-
     const handleReportSubmit = async (e) => {
-        e.preventDefault();
 
-        try {
-            setSubmittingReport(true);
-            setReportMessage("");
+    e.preventDefault();
 
-            const token = localStorage.getItem("token");
+    try {
 
-            if (!token) {
-                setReportMessage(
-                    "Please login before submitting a report."
-                );
-                return;
-            }
+        setSubmittingReport(true);
+        setReportMessage("");
 
-            if (!reportDescription.trim()) {
-                setReportMessage(
-                    "Please describe the reason for your report."
-                );
-                return;
-            }
+        const token = localStorage.getItem("token");
 
-            const response = await fetch(
-                "http://localhost:5000/api/reports",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        property_id: id,
-                        category: reportCategory,
-                        description: reportDescription.trim()
-                    })
-                }
-            );
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(
-                    data.message || "Report submission failed."
-                );
-            }
-
+        if (!token) {
             setReportMessage(
-                "Report submitted successfully. Our admin team will review it."
+                "Please login before submitting a report."
             );
-
-            setReportDescription("");
-            setReportCategory("fraudulent_listing");
-
-        } catch (error) {
-            console.error("Report submission error:", error);
-
-            setReportMessage(
-                error.message || "Report submission failed."
-            );
-
-        } finally {
-            setSubmittingReport(false);
+            return;
         }
-    };
-           
-   if (loading) {
+
+        if (!reportDescription.trim()) {
+            setReportMessage(
+                "Please describe the reason for your report."
+            );
+            return;
+        }
+
+        const response = await fetch(
+            "http://localhost:5000/api/reports",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+
+                body: JSON.stringify({
+                    property_id: id,
+                    category: reportCategory,
+                    description: reportDescription.trim()
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.message ||
+                "Report submission failed."
+            );
+        }
+
+        setReportMessage(
+            "Report submitted successfully. Our admin team will review it."
+        );
+
+        setReportDescription("");
+        setReportCategory("fraudulent_listing");
+
+    } catch (error) {
+
+        console.error(
+            "Report submission error:",
+            error
+        );
+
+        setReportMessage(
+            error.message ||
+            "Report submission failed."
+        );
+
+    } finally {
+
+        setSubmittingReport(false);
+    }
+};
+    if (loading) {
 
         return (
 
@@ -686,7 +711,6 @@ function PropertyDetails() {
                             );
                         })()}
 
-
                     </div>
                     {/* Reporting Section */}
                     <div
@@ -704,9 +728,8 @@ function PropertyDetails() {
                                 setReportMessage("");
                             }}
                         >
-                           Report this property
+                            ⚑ Report this property
                         </button>
-
 
 
                         {showReportForm && (
@@ -842,7 +865,6 @@ function PropertyDetails() {
                         )}
 
                     </div>
-
                     {/* Reviews Section */}
                     <div
                         style={{

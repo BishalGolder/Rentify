@@ -16,6 +16,13 @@ function Properties() {
 
     const [deletingId, setDeletingId] = useState(null);
 
+    // Edit state
+    const [editingProperty, setEditingProperty] = useState(null);
+    const [editFormData, setEditFormData] = useState({});
+    const [editImageFiles, setEditImageFiles] = useState([]);
+    const [editLoading, setEditLoading] = useState(false);
+    const [editMessage, setEditMessage] = useState("");
+
 
     /*
     =====================================================
@@ -146,6 +153,122 @@ function Properties() {
 
         navigate("/addProperty");
 
+    };
+
+
+    /*
+    =====================================================
+    OPEN EDIT FORM
+    =====================================================
+    */
+
+    const openEditForm = (property) => {
+        setEditingProperty(property);
+        setEditFormData({
+            title: property.title || "",
+            description: property.description || "",
+            location: property.location || "",
+            district: property.district || "",
+            property_type: property.property_type || "Apartment",
+            price: property.price || "",
+            bedrooms: property.bedrooms || 1,
+            bathrooms: property.bathrooms || 1,
+            maximum_guests: property.maximum_guests || 2,
+            amenities: Array.isArray(property.amenities)
+                ? property.amenities.join(", ")
+                : (property.amenities || "")
+        });
+        setEditImageFiles([]);
+        setEditMessage("");
+    };
+
+
+    /*
+    =====================================================
+    HANDLE EDIT SUBMIT
+    =====================================================
+    */
+
+    const handleEditSubmit = async (e) => {
+        e.preventDefault();
+        setEditLoading(true);
+        setEditMessage("");
+
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            navigate("/login");
+            return;
+        }
+
+        try {
+            let image_urls = editingProperty.image_urls || [];
+
+            if (editImageFiles.length > 0) {
+                const uploadForm = new FormData();
+                editImageFiles.forEach((f) => uploadForm.append("images", f));
+
+                const uploadRes = await fetch(
+                    "http://localhost:5000/api/properties/upload-images",
+                    {
+                        method: "POST",
+                        headers: { Authorization: `Bearer ${token}` },
+                        body: uploadForm
+                    }
+                );
+
+                const uploadData = await uploadRes.json();
+
+                if (!uploadRes.ok) {
+                    throw new Error(uploadData.message || "Image upload failed.");
+                }
+
+                image_urls = uploadData.image_urls;
+            }
+
+            const payload = {
+                ...editFormData,
+                price: parseFloat(editFormData.price),
+                bedrooms: parseInt(editFormData.bedrooms, 10),
+                bathrooms: parseInt(editFormData.bathrooms, 10),
+                maximum_guests: parseInt(editFormData.maximum_guests, 10),
+                amenities: editFormData.amenities
+                    ? editFormData.amenities.split(",").map((a) => a.trim()).filter(Boolean)
+                    : [],
+                image_urls
+            };
+
+            const res = await fetch(
+                `http://localhost:5000/api/properties/${editingProperty.id}`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                }
+            );
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.message || "Failed to update property.");
+            }
+
+            setEditMessage("Property updated successfully.");
+            await fetchProperties();
+
+            setTimeout(() => {
+                setEditingProperty(null);
+                setEditMessage("");
+            }, 1500);
+
+        } catch (error) {
+            setEditMessage(error.message || "Failed to update property.");
+        } finally {
+            setEditLoading(false);
+        }
     };
 
 
@@ -1287,6 +1410,27 @@ function Properties() {
 
                                                     )}
 
+                                                    {/* LOCKED BY ADMIN */}
+                                                    {property.is_locked && (
+                                                        <span
+                                                            style={{
+                                                                display: "inline-flex",
+                                                                alignItems: "center",
+                                                                gap: "5px",
+                                                                background: "#dc2626",
+                                                                color: "#ffffff",
+                                                                border: "1px solid #b91c1c",
+                                                                borderRadius: "999px",
+                                                                padding: "5px 10px",
+                                                                fontSize: "0.72rem",
+                                                                fontWeight: "800",
+                                                                letterSpacing: "0.3px"
+                                                            }}
+                                                        >
+                                                            🔒 LOCKED
+                                                        </span>
+                                                    )}
+
                                                 </div>
 
 
@@ -1891,7 +2035,19 @@ function Properties() {
 
 
                                                     {/* =================================================
-                                                        VERIFIED PROPERTY
+                                                        EDIT BUTTON (for all)
+                                                        ================================================= */}
+
+                                                    <button
+                                                        className="btn btn-secondary"
+                                                        onClick={() => openEditForm(property)}
+                                                    >
+                                                        Edit
+                                                    </button>
+
+
+                                                    {/* =================================================
+                                                        VERIFIED PROPERTY DELETE
                                                         ================================================= */}
 
                                                     {property.verification_status ===
@@ -1929,7 +2085,7 @@ function Properties() {
 
 
                                                     {/* =================================================
-                                                        PENDING PROPERTY
+                                                        PENDING PROPERTY CANCEL
                                                         ================================================= */}
 
                                                     {property.verification_status ===
@@ -1984,6 +2140,113 @@ function Properties() {
 
             </div>
 
+            {/* =================================================
+                EDIT MODAL
+                ================================================= */}
+            {editingProperty && (
+                <div style={{
+                    position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+                    zIndex: 50, display: "flex", alignItems: "center",
+                    justifyContent: "center", padding: "1rem"
+                }}>
+                    <div style={{
+                        background: "white", borderRadius: "12px", padding: "2rem",
+                        width: "100%", maxWidth: "600px", maxHeight: "90vh",
+                        overflowY: "auto"
+                    }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem" }}>
+                            <h2>Edit Property</h2>
+                            <button className="btn btn-secondary" onClick={() => setEditingProperty(null)}>✕</button>
+                        </div>
+
+                        {editMessage && (
+                            <p style={{
+                                color: editMessage.includes("successfully") ? "var(--success-color)" : "var(--danger-color)",
+                                marginBottom: "1rem"
+                            }}>
+                                {editMessage}
+                            </p>
+                        )}
+
+                        <form onSubmit={handleEditSubmit}>
+                            {[
+                                { label: "Title", name: "title", type: "text" },
+                                { label: "Price per night (৳)", name: "price", type: "number" },
+                                { label: "Location", name: "location", type: "text" },
+                                { label: "District", name: "district", type: "text" },
+                                { label: "Bedrooms", name: "bedrooms", type: "number" },
+                                { label: "Bathrooms", name: "bathrooms", type: "number" },
+                                { label: "Max Guests", name: "maximum_guests", type: "number" },
+                            ].map(({ label, name, type }) => (
+                                <div key={name} className="form-group" style={{ marginBottom: "0.75rem" }}>
+                                    <label style={{ display: "block", marginBottom: "0.25rem", fontWeight: 600 }}>{label}</label>
+                                    <input
+                                        type={type}
+                                        value={editFormData[name] || ""}
+                                        onChange={(e) => setEditFormData((prev) => ({ ...prev, [name]: e.target.value }))}
+                                        required
+                                        style={{ width: "100%", padding: "8px", border: "1px solid var(--border-color)", borderRadius: "6px" }}
+                                    />
+                                </div>
+                            ))}
+
+                            <div className="form-group" style={{ marginBottom: "0.75rem" }}>
+                                <label style={{ display: "block", marginBottom: "0.25rem", fontWeight: 600 }}>Description</label>
+                                <textarea
+                                    value={editFormData.description || ""}
+                                    onChange={(e) => setEditFormData((prev) => ({ ...prev, description: e.target.value }))}
+                                    rows={3}
+                                    style={{ width: "100%", padding: "8px", border: "1px solid var(--border-color)", borderRadius: "6px" }}
+                                />
+                            </div>
+
+                            <div className="form-group" style={{ marginBottom: "0.75rem" }}>
+                                <label style={{ display: "block", marginBottom: "0.25rem", fontWeight: 600 }}>Property Type</label>
+                                <select
+                                    value={editFormData.property_type || "Apartment"}
+                                    onChange={(e) => setEditFormData((prev) => ({ ...prev, property_type: e.target.value }))}
+                                    style={{ width: "100%", padding: "8px", border: "1px solid var(--border-color)", borderRadius: "6px" }}
+                                >
+                                    {["Apartment","House","Villa","Studio","Condo","Duplex"].map((t) => (
+                                        <option key={t} value={t}>{t}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="form-group" style={{ marginBottom: "0.75rem" }}>
+                                <label style={{ display: "block", marginBottom: "0.25rem", fontWeight: 600 }}>Amenities (comma-separated)</label>
+                                <input
+                                    type="text"
+                                    value={editFormData.amenities || ""}
+                                    onChange={(e) => setEditFormData((prev) => ({ ...prev, amenities: e.target.value }))}
+                                    placeholder="WiFi, AC, Parking"
+                                    style={{ width: "100%", padding: "8px", border: "1px solid var(--border-color)", borderRadius: "6px" }}
+                                />
+                            </div>
+
+                            <div className="form-group" style={{ marginBottom: "1rem" }}>
+                                <label style={{ display: "block", marginBottom: "0.25rem", fontWeight: 600 }}>Replace Images (optional)</label>
+                                <input
+                                    type="file" accept="image/*" multiple
+                                    onChange={(e) => setEditImageFiles(Array.from(e.target.files).slice(0, 8))}
+                                />
+                                <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
+                                    Leave empty to keep existing images.
+                                </p>
+                            </div>
+
+                            <div style={{ display: "flex", gap: "0.5rem" }}>
+                                <button type="submit" className="btn btn-primary" disabled={editLoading}>
+                                    {editLoading ? "Saving..." : "Save Changes"}
+                                </button>
+                                <button type="button" className="btn btn-secondary" onClick={() => setEditingProperty(null)}>
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
 
     );

@@ -19,61 +19,79 @@ function BookingModal({ property, onClose, onBookingSuccess }) {
     const [bookedRanges, setBookedRanges] = useState([]);
     const [blockedRanges, setBlockedRanges] = useState([]);
 
-    const [selection, setSelection] = useState({ checkIn: null, checkOut: null });
+    const [selection, setSelection] = useState({ checkIn: null, checkOut: null, dayCount: 0 });
     const [guests, setGuests] = useState(1);
 
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState("");
     const [submitSuccess, setSubmitSuccess] = useState("");
 
+    // New state for wallet balance
+    const [walletBalance, setWalletBalance] = useState(null);
+
 
     /*
     =====================================================
-    LOAD AVAILABILITY
+    LOAD AVAILABILITY AND WALLET BALANCE
     =====================================================
     */
 
     useEffect(() => {
 
-        const fetchAvailability = async () => {
+        const fetchAvailabilityAndBalance = async () => {
 
             setLoadingAvailability(true);
             setAvailabilityError("");
 
             try {
 
-                const response = await fetch(
+                // 1. Fetch availability
+                const availabilityResponse = await fetch(
                     `${API_BASE}/bookings/availability/${property.id}`
                 );
 
-                const data = await response.json();
+                const availabilityData = await availabilityResponse.json();
 
-                if (!response.ok) {
+                if (!availabilityResponse.ok) {
 
                     throw new Error(
-                        data.message || "Failed to load availability."
+                        availabilityData.message || "Failed to load availability."
                     );
 
                 }
 
                 setBookedRanges(
-                    (data.bookedRanges || []).map((range) => ({
+                    (availabilityData.bookedRanges || []).map((range) => ({
                         start: range.check_in,
                         end: range.check_out
                     }))
                 );
 
-
                 setBlockedRanges(
-                    (data.blockedRanges || []).map((block) => ({
+                    (availabilityData.blockedRanges || []).map((block) => ({
                         start: block.start_date,
                         end: block.end_date
                     }))
                 );
 
+                // 2. Fetch wallet balance (if logged in)
+                const token = localStorage.getItem("token");
+                if (token) {
+                    const profileRes = await fetch(`${API_BASE}/profiles/me`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    if (profileRes.ok) {
+                        const profile = await profileRes.json();
+                        setWalletBalance(profile.wallet_balance ?? 0);
+                    } else {
+                        // If profile fetch fails, we don't block booking; just set balance to null
+                        setWalletBalance(null);
+                    }
+                }
+
             } catch (error) {
 
-                console.error("Load availability error:", error);
+                console.error("Load availability/balance error:", error);
 
                 setAvailabilityError(
                     error.message || "Failed to load availability for this property."
@@ -87,7 +105,7 @@ function BookingModal({ property, onClose, onBookingSuccess }) {
 
         };
 
-        fetchAvailability();
+        fetchAvailabilityAndBalance();
 
     }, [property.id]);
 
@@ -98,15 +116,9 @@ function BookingModal({ property, onClose, onBookingSuccess }) {
     =====================================================
     */
 
-    const nights =
-        selection.checkIn && selection.checkOut
-            ? Math.round(
-                (new Date(selection.checkOut) - new Date(selection.checkIn)) /
-                (1000 * 60 * 60 * 24)
-            )
-            : 0;
+    const days = selection.dayCount || 0;
 
-    const totalPrice = nights * Number(property.price || 0);
+    const totalPrice = days * Number(property.price || 0);
 
 
     /*
@@ -120,9 +132,9 @@ function BookingModal({ property, onClose, onBookingSuccess }) {
         setSubmitError("");
         setSubmitSuccess("");
 
-        if (!selection.checkIn || !selection.checkOut) {
+        if (!selection.checkIn || selection.dayCount < 1) {
 
-            setSubmitError("Please select a check-in and check-out date.");
+            setSubmitError("Please select at least one date.");
 
             return;
 
@@ -180,6 +192,7 @@ function BookingModal({ property, onClose, onBookingSuccess }) {
                     property_id: property.id,
                     check_in: selection.checkIn,
                     check_out: selection.checkOut,
+                    day_count: selection.dayCount,
                     guests
                 })
 
@@ -195,7 +208,7 @@ function BookingModal({ property, onClose, onBookingSuccess }) {
 
             }
 
-                       setSubmitSuccess("✓ Your booking is confirmed — this property is now reserved for your dates.");
+            setSubmitSuccess("✓ Your booking is confirmed — this property is now reserved for your dates.");
 
             if (onBookingSuccess) {
                 onBookingSuccess(data.booking);
@@ -320,14 +333,22 @@ function BookingModal({ property, onClose, onBookingSuccess }) {
                             </div>
 
                             <div className="booking-modal-summary-row">
-                                <span>Nights</span>
-                                <span>{nights || "-"}</span>
+                                <span>Days</span>
+                                <span>{days ? `${days} day${days > 1 ? "s" : ""}` : "-"}</span>
                             </div>
 
                             <div className="booking-modal-summary-row total">
                                 <span>Total</span>
                                 <span>৳{totalPrice || 0}</span>
                             </div>
+
+                            {/* Wallet balance warning */}
+                            {walletBalance !== null && totalPrice > walletBalance && (
+                                <p style={{ color: "var(--danger-color)", marginTop: "0.5rem" }}>
+                                    Your wallet balance (৳{walletBalance}) is not enough for this booking (৳{totalPrice}).{" "}
+                                    <a href="/wallet" style={{ color: "var(--primary-color)" }}>Recharge your wallet</a> first.
+                                </p>
+                            )}
 
                         </div>
 
@@ -338,7 +359,8 @@ function BookingModal({ property, onClose, onBookingSuccess }) {
                             disabled={
                                 submitting ||
                                 !selection.checkIn ||
-                                !selection.checkOut
+                                selection.dayCount < 1 ||
+                                (walletBalance !== null && totalPrice > walletBalance)
                             }
                             onClick={handleConfirmBooking}
                         >

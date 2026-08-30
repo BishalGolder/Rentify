@@ -316,42 +316,48 @@ export const createBooking = async (req, res) => {
         ==============================================
         */
 
-        const nights = Math.round(
-            (new Date(check_out) - new Date(check_in)) / (1000 * 60 * 60 * 24)
-        );
+        const { day_count } = req.body;
+ 
+        // Use the explicit day count sent by the frontend (price-per-day model).
+        // Fall back to the date-difference calculation for any API calls
+        // that don't include day_count (e.g. direct API testing).
+        const days = day_count && Number.isInteger(Number(day_count)) && Number(day_count) > 0
+            ? Number(day_count)
+            : Math.max(1, Math.round(
+                (new Date(check_out) - new Date(check_in)) / (1000 * 60 * 60 * 24)
+              ) + 1);
+ 
+        const totalPrice = days * Number(property.price);
 
+ 
+        const { error: paymentError } = await req.supabase.rpc(
+            "pay_booking_from_wallet",
+            { p_guest_id: guestId, p_amount: totalPrice, p_booking_id: null }
+        );
+ 
+        if (paymentError) {
+            return res.status(402).json({
+                message: "Insufficient wallet balance. Please recharge your wallet and try again."
+            });
+        }
+ 
         const bookingData = {
             property_id,
             guest_id: guestId,
             check_in,
             check_out,
             number_of_guests: guests,
-            total_price: nights * Number(property.price),
+            total_price: totalPrice,
             status: "confirmed"
         };
 
-        const { data, error } =
-            await BookingModel.createBooking(bookingData, req.supabase);
-
+        const { data, error } = await BookingModel.createBooking(bookingData, req.supabase);
+ 
         if (error) {
-
-            console.error("Create Booking Error:", error);
-
-            // 23P01 = Postgres exclusion_violation — another booking
-            // grabbed these dates in the moment between our check above
-            // and this insert.
-            if (error.code === "23P01") {
-
-                return res.status(409).json({
-                    message: "This property was just booked for those dates by someone else. Please choose different dates."
-                });
-
-            }
-
-            return res.status(400).json({
-                message: error.message || "Failed to create booking."
+            await req.supabase.rpc("refund_booking_to_wallet", {
+                p_guest_id: guestId, p_amount: totalPrice, p_booking_id: null
             });
-
+            return res.status(400).json({ message: error.message });
         }
 
 
@@ -551,6 +557,17 @@ export const cancelBooking = async (req, res) => {
 
         }
 
+        /*
+        ==============================================
+        REFUND GUEST'S WALLET
+        ==============================================
+        */
+        await req.supabase.rpc("refund_booking_to_wallet", {
+            p_guest_id: guestId,
+            p_amount: booking.total_price,
+            p_booking_id: booking.id
+        });
+
 
         /*
         ==============================================
@@ -647,12 +664,32 @@ export const getHostRevenue = async (req, res) => {
  
         });
  
+        const buildDailySeries = (days) => {
+            const series = [];
+            for (let i = days - 1; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const dateStr = d.toISOString().slice(0, 10);
+                const dayTotal = (bookings || [])
+                    .filter((b) => b.created_at.slice(0, 10) === dateStr)
+                    .reduce((sum, b) => sum + Number(b.total_price), 0);
+                series.push({ date: dateStr, revenue: dayTotal });
+            }
+            return series;
+        };
+ 
+        const now = new Date();
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+ 
         return res.json({
             totalRevenue,
             totalBookings: (bookings || []).length,
             perProperty,
-            recentBookings: (bookings || []).slice(0, 10)
+            recentBookings: (bookings || []).slice(0, 10),
+            last7Days: buildDailySeries(7),
+            thisMonth: buildDailySeries(daysInMonth)
         });
+
  
     } catch (error) {
  
@@ -662,4 +699,47 @@ export const getHostRevenue = async (req, res) => {
  
     }
  
+};
+
+/*
+    Get All Bookings For Admin
+*/
+export const getAllBookingsForAdmin = async (req, res) => {
+    try {
+        const { serviceSupabase } =
+            await import("../config/supabaseClient.js");
+
+        if (!serviceSupabase) {
+            return res.status(500).json({
+                message:
+                    "Server admin database client is not configured."
+            });
+        }
+
+        const { data, error } =
+            await BookingModel.getAllBookingsForAdmin(
+                serviceSupabase
+            );
+
+        if (error) {
+            return res.status(400).json({
+                message:
+                    "Failed to load bookings.",
+                error: error.message
+            });
+        }
+
+        return res.json(data || []);
+
+    } catch (error) {
+        console.error(
+            "Get All Bookings For Admin Error:",
+            error
+        );
+
+        return res.status(500).json({
+            message:
+                "Failed to load bookings."
+        });
+    }
 };

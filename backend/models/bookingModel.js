@@ -166,3 +166,33 @@ export const cancelBooking = async (bookingId, guestId, client = supabase) => {
  
     return { data, error };
 };
+/*
+    Get All Bookings For Admin
+*/
+export const getAllBookingsForAdmin = async (client) => {
+
+    const { data, error } = await client
+        .from("bookings")
+        .select(`
+            id,
+            property_id,
+            guest_id,
+            check_in,
+            check_out,
+            number_of_guests,
+            total_price,
+            status,
+            special_requests,
+            created_at,
+            updated_at,
+            properties (
+                id,
+                title,
+                location,
+                district
+            )
+        `)
+        .order("created_at", { ascending: false });
+
+    return { data, error };
+};

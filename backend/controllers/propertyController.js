@@ -1022,14 +1022,17 @@ export const updateProperty = async (
             error
         } =
             await PropertyModel.updateProperty(
-
+ 
                 id,
-
+ 
                 hostId,
-
-                req.body
-
+ 
+                req.body,
+ 
+                req.supabase
+ 
             );
+
 
 
         if (error) {
@@ -1101,10 +1104,10 @@ export const deleteProperty = async (
             error
         } =
             await PropertyModel.deleteProperty(
-
                 id,
+                hostId,
+                req.supabase
 
-                hostId
 
             );
 
@@ -1150,6 +1153,7 @@ export const deleteProperty = async (
     }
 
 };
+
 /*
 =====================================================
 CANCEL PENDING PROPERTY REQUEST
@@ -1459,4 +1463,167 @@ export const verifyProperty = async (
 
     }
 
+};
+
+
+/*
+=====================================================
+GET NEARBY PROPERTIES
+=====================================================
+
+Fetches properties within a radius (in km) of a
+given latitude/longitude.
+
+Requires a PostGIS function `get_nearby_properties`
+defined in the database.
+
+Query parameters:
+- lat: latitude (required)
+- lng: longitude (required)
+- radius: radius in km (optional, defaults to 5)
+=====================================================
+*/
+
+export const getNearbyProperties = async (req, res) => {
+    try {
+        const { lat, lng, radius } = req.query;
+ 
+        if (!lat || !lng) {
+            return res.status(400).json({ message: "lat and lng are required." });
+        }
+ 
+        const { data, error } = await supabase.rpc("get_nearby_properties", {
+            p_lat: Number(lat),
+            p_lng: Number(lng),
+            p_radius_km: radius ? Number(radius) : 5
+        });
+ 
+        if (error) return res.status(400).json({ message: error.message });
+ 
+        res.json(data || []);
+    } catch (error) {
+        console.error("Get Nearby Properties Error:", error);
+        res.status(500).json({ message: "Failed to search nearby properties." });
+    }
+};
+
+/*
+=====================================================
+ADMIN DELETE PROPERTY (Hard delete)
+=====================================================
+
+Admin can permanently delete any property.
+=====================================================
+*/
+
+export const adminDeleteProperty = async (req, res) => {
+    try {
+        const { id } = req.params;
+ 
+        const { data, error } = await req.supabase
+            .from("properties")
+            .delete()
+            .eq("id", id)
+            .select()
+            .single();
+ 
+        if (error) {
+            return res.status(400).json({ message: error.message });
+        }
+ 
+        return res.json({
+            message: "Property deleted successfully.",
+            property: data
+        });
+    } catch (error) {
+        console.error("Admin Delete Property Error:", error);
+        return res.status(500).json({ message: "Failed to delete property." });
+    }
+};
+
+/*
+=====================================================
+ADMIN TOGGLE PROPERTY LOCK
+=====================================================
+
+Admin can lock/unlock a property.
+Locked properties are hidden from search and booking.
+=====================================================
+*/
+
+export const adminTogglePropertyLock = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { lock } = req.body;
+ 
+        if (typeof lock !== "boolean") {
+            return res.status(400).json({ message: "lock must be true or false." });
+        }
+ 
+        const { data, error } = await req.supabase.rpc(
+            "admin_toggle_property_lock",
+            { p_property_id: id, p_lock: lock }
+        );
+ 
+        if (error) {
+            return res.status(400).json({ message: error.message });
+        }
+ 
+        const result = Array.isArray(data) ? data[0] : data;
+ 
+        // Notify the host
+        await import("../models/notificationModel.js").then(({ createNotification }) =>
+            createNotification({
+                user_id: result.host_id,
+                type: lock ? "property_locked" : "property_unlocked",
+                title: lock ? "Property Locked" : "Property Unlocked",
+                message: lock
+                    ? `Your property "${result.title}" has been locked by an admin and is no longer visible to guests.`
+                    : `Your property "${result.title}" has been unlocked and is now visible again.`,
+                related_entity_type: "property",
+                related_entity_id: result.id
+            }, req.supabase)
+        ).catch(() => {});
+ 
+        return res.json({
+            message: lock ? "Property locked." : "Property unlocked.",
+            property: result
+        });
+ 
+    } catch (error) {
+        console.error("Admin Toggle Property Lock Error:", error);
+        return res.status(500).json({ message: "Failed to update property lock status." });
+    }
+};
+
+/*
+=====================================================
+GET ALL PROPERTIES FOR ADMIN
+=====================================================
+
+Admin can view all properties (including locked ones)
+with basic fields.
+=====================================================
+*/
+
+export const getAllPropertiesForAdmin = async (req, res) => {
+    try {
+        const { serviceSupabase } = await import("../config/supabaseClient.js");
+ 
+        if (!serviceSupabase) {
+            return res.status(500).json({ message: "Service client not configured." });
+        }
+ 
+        const { data, error } = await serviceSupabase
+            .from("properties")
+            .select("id, title, host_id, verification_status, is_locked, price, location, image_urls")
+            .order("created_at", { ascending: false });
+ 
+        if (error) return res.status(400).json({ message: error.message });
+ 
+        return res.json(data || []);
+    } catch (error) {
+        console.error("Get All Properties For Admin Error:", error);
+        return res.status(500).json({ message: "Failed to load properties." });
+    }
 };
