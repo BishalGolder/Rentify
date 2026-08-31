@@ -5,10 +5,26 @@
   --bg-color: #f9fafb;
   --card-bg: #ffffff;
   --text-main: #111827;
+  --text-color: #111827;
   --text-muted: #6b7280;
   --border-color: #e5e7eb;
   --danger-color: #ef4444;
   --success-color: #10b981;
+  --input-bg: #ffffff;
+}
+
+[data-theme="dark"] {
+  --primary-color: #818cf8;
+  --primary-hover: #6366f1;
+  --bg-color: #0f172a;
+  --card-bg: #1e293b;
+  --text-main: #f1f5f9;
+  --text-color: #f1f5f9;
+  --text-muted: #94a3b8;
+  --border-color: #334155;
+  --danger-color: #f87171;
+  --success-color: #34d399;
+  --input-bg: #1e293b;
 }
 
 .dashboard-container {
@@ -78,6 +94,8 @@
   font-size: 0.95rem;
   outline: none;
   transition: border-color 0.2s;
+  background-color: var(--input-bg);
+  color: var(--text-main);
 }
 
 .form-group input:focus, 
@@ -434,4 +452,22 @@
         width: 100%;
     }
 
+}
+
+/* Dark mode: page background and form controls */
+body {
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  background-color: var(--input-bg);
+  color: var(--text-main);
+}
+
+[data-theme="dark"] .ui-card {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
 }

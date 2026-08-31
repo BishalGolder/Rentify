@@ -354,11 +354,58 @@ export const createBooking = async (req, res) => {
         const { data, error } = await BookingModel.createBooking(bookingData, req.supabase);
  
         if (error) {
-            await req.supabase.rpc("refund_booking_to_wallet", {
-                p_guest_id: guestId, p_amount: totalPrice, p_booking_id: null
-            });
-            return res.status(400).json({ message: error.message });
-        }
+
+    console.error(
+        "Create Booking Error:",
+        error
+    );
+
+
+    /*
+    ==============================================
+    BOOKING CREATION FAILED AFTER WALLET PAYMENT
+    ==============================================
+
+    The booking does not exist, so this is NOT a
+    booking cancellation/refund.
+
+    We simply return the money to the wallet and
+    record it as a payment reversal.
+    ==============================================
+    */
+
+    const { data: reversalBalance, error: reversalError } =
+        await req.supabase.rpc(
+            "refund_booking_payment_failure",
+            {
+                p_guest_id: guestId,
+                p_amount: totalPrice
+            }
+        );
+
+
+    if (reversalError) {
+
+        console.error(
+            "Payment reversal error:",
+            reversalError
+        );
+
+        return res.status(500).json({
+            message:
+                "Booking creation failed and the payment reversal could not be completed. Please contact support."
+        });
+
+    }
+
+
+    return res.status(400).json({
+        message:
+            "Booking could not be created. Your wallet payment has been returned.",
+        wallet_balance: reversalBalance
+    });
+
+}
 
 
         /*
@@ -517,8 +564,19 @@ export const cancelBooking = async (req, res) => {
 
         const { id } = req.params;
 
+
+        /*
+        ==============================================
+        CHECK THAT THE BOOKING EXISTS
+        ==============================================
+        */
+
         const { data: booking, error: findError } =
-            await BookingModel.getBookingById(id, req.supabase);
+            await BookingModel.getBookingById(
+                id,
+                req.supabase
+            );
+
 
         if (findError || !booking) {
 
@@ -528,6 +586,13 @@ export const cancelBooking = async (req, res) => {
 
         }
 
+
+        /*
+        ==============================================
+        VERIFY OWNERSHIP
+        ==============================================
+        */
+
         if (booking.guest_id !== guestId) {
 
             return res.status(403).json({
@@ -536,80 +601,150 @@ export const cancelBooking = async (req, res) => {
 
         }
 
+
+        /*
+        ==============================================
+        VERIFY STATUS
+        ==============================================
+        */
+
         if (booking.status !== "confirmed") {
 
             return res.status(400).json({
-                message: "This booking has already been cancelled."
+                message:
+                    "This booking has already been cancelled or is no longer cancellable."
             });
 
         }
 
-        const { data, error } =
-            await BookingModel.cancelBooking(id, guestId, req.supabase);
-
-        if (error) {
-
-            console.error("Cancel Booking Error:", error);
-
-            return res.status(400).json({
-                message: "Failed to cancel booking."
-            });
-
-        }
 
         /*
         ==============================================
-        REFUND GUEST'S WALLET
+        CANCEL + REFUND
+        ==============================================
+
+        This single RPC:
+
+        1. Cancels the booking
+        2. Adds the money to the guest wallet
+        3. Creates wallet transaction
+        4. Creates booking refund record
+
+        All inside one database transaction.
         ==============================================
         */
-        await req.supabase.rpc("refund_booking_to_wallet", {
-            p_guest_id: guestId,
-            p_amount: booking.total_price,
-            p_booking_id: booking.id
-        });
+
+        const { data: cancelledBooking, error: refundError } =
+            await req.supabase.rpc(
+                "cancel_booking_and_refund",
+                {
+                    p_booking_id: id
+                }
+            );
+
+
+        if (refundError) {
+
+            console.error(
+                "Cancel + Refund Error:",
+                refundError
+            );
+
+            return res.status(400).json({
+                message:
+                    refundError.message ||
+                    "Failed to cancel booking and process refund."
+            });
+
+        }
 
 
         /*
         ==============================================
-        NOTIFY HOST
+        GET PROPERTY INFORMATION FOR HOST NOTIFICATION
         ==============================================
         */
 
         try {
 
             const { data: property } =
-                await BookingModel.getPropertyForBooking(booking.property_id, req.supabase);
+                await BookingModel.getPropertyForBooking(
+                    booking.property_id,
+                    req.supabase
+                );
+
 
             if (property) {
 
                 await createNotification({
+
                     user_id: property.host_id,
+
                     type: "booking_cancelled",
+
                     title: "Booking Cancelled",
-                    message: `A booking for "${property.title}" (${booking.check_in} to ${booking.check_out}) was cancelled by the guest.`,
+
+                    message:
+                        `Your property "${property.title}" has had a booking cancelled by the guest.`,
+
                     related_entity_type: "booking",
+
                     related_entity_id: booking.id
+
                 }, req.supabase);
 
             }
 
         } catch (notificationError) {
 
-            console.error("Notification creation error:", notificationError);
+            /*
+            Notification failure should not make the
+            cancellation/refund fail because the money
+            has already been safely processed.
+            */
+
+            console.error(
+                "Notification creation error:",
+                notificationError
+            );
 
         }
 
+
+        /*
+        ==============================================
+        SUCCESS RESPONSE
+        ==============================================
+        */
+
         return res.json({
-            message: "Booking cancelled successfully.",
-            booking: data
+
+            message:
+                "Booking cancelled successfully and refund processed.",
+
+            booking: cancelledBooking,
+
+            refund: {
+
+                amount: Number(booking.total_price),
+
+                status: "processed"
+
+            }
+
         });
+
 
     } catch (error) {
 
-        console.error("Cancel Booking Error:", error);
+        console.error(
+            "Cancel Booking Error:",
+            error
+        );
 
         return res.status(500).json({
-            message: "Failed to cancel booking."
+            message:
+                "Failed to cancel booking and process refund."
         });
 
     }

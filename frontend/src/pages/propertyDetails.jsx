@@ -30,14 +30,25 @@ function PropertyDetails() {
     const [showBookingModal, setShowBookingModal] =
         useState(false);
 
+
+    // Reviews
     const [reviews, setReviews] = useState([]);
     const [reviewsLoading, setReviewsLoading] = useState(true);
     const [rating, setRating] = useState(5);
     const [comment, setComment] = useState("");
     const [submittingReview, setSubmittingReview] = useState(false);
     const [reviewMessage, setReviewMessage] = useState("");
- // Reporting System
-    const [showReportForm, setShowReportForm] = useState(false);
+
+    const [eligibleBookingId, setEligibleBookingId] =
+        useState(null);
+
+    const [canReview, setCanReview] =
+        useState(false);
+
+
+    // Reporting System
+    const [showReportForm, setShowReportForm] =
+        useState(false);
 
     const [reportCategory, setReportCategory] =
         useState("fraudulent_listing");
@@ -50,16 +61,18 @@ function PropertyDetails() {
 
     const [reportMessage, setReportMessage] =
         useState("");
-    const storedUser = JSON.parse(localStorage.getItem("user") || "null");
-    const canReview = storedUser?.role === "guest";
 
+
+    const storedUser =
+        JSON.parse(localStorage.getItem("user") || "null");
 
 
     useEffect(() => {
- 
+
         fetchProperty();
         fetchReviews();
- 
+        checkReviewEligibility();
+
     }, [id]);
 
 
@@ -109,63 +122,118 @@ function PropertyDetails() {
 
     };
 
+
     const fetchReviews = async () => {
+
         try {
+
             setReviewsLoading(true);
 
-            const res = await fetch(
-                `http://localhost:5000/api/reviews/property/${id}`
-            );
+            const res =
+                await fetch(
+                    `http://localhost:5000/api/reviews/property/${id}`
+                );
+
 
             if (res.ok) {
-                const data = await res.json();
+
+                const data =
+                    await res.json();
+
                 setReviews(data);
+
             } else {
-                console.error("Failed to load reviews");
+
+                console.error(
+                    "Failed to load reviews"
+                );
+
             }
 
         } catch (error) {
-            console.error("Review loading error:", error);
-        } finally {
-            setReviewsLoading(false);
-        }
-    };
 
-    const checkReviewEligibility = async () => {
-        try {
-            const token = localStorage.getItem("token");
-
-            if (!token) {
-                setCanReview(false);
-                setEligibleBookingId(null);
-                return;
-            }
-
-            const res = await fetch(
-                `http://localhost:5000/api/reviews/eligible/${id}`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
-                }
+            console.error(
+                "Review loading error:",
+                error
             );
 
-            const data = await res.json();
+        } finally {
 
-            if (res.ok && data.eligible) {
-                setCanReview(true);
-                setEligibleBookingId(data.booking_id);
-            } else {
+            setReviewsLoading(false);
+
+        }
+
+    };
+
+
+    const checkReviewEligibility = async () => {
+
+        try {
+
+            const token =
+                localStorage.getItem("token");
+
+
+            if (!token) {
+
                 setCanReview(false);
                 setEligibleBookingId(null);
+
+                return;
+
+            }
+
+
+            const res =
+                await fetch(
+                    `http://localhost:5000/api/reviews/eligible/${id}`,
+                    {
+                        headers: {
+                            Authorization:
+                                `Bearer ${token}`
+                        }
+                    }
+                );
+
+
+            const data =
+                await res.json();
+
+
+            if (
+                res.ok &&
+                data.eligible
+            ) {
+
+                setCanReview(true);
+
+                setEligibleBookingId(
+                    data.booking_id
+                );
+
+            } else {
+
+                setCanReview(false);
+
+                setEligibleBookingId(null);
+
             }
 
         } catch (error) {
-            console.error("Eligibility check error:", error);
+
+            console.error(
+                "Eligibility check error:",
+                error
+            );
+
             setCanReview(false);
+
             setEligibleBookingId(null);
+
         }
+
     };
+
 
     const handleBackToDashboard = () => {
 
@@ -173,64 +241,102 @@ function PropertyDetails() {
 
     };
 
+
     const handleReviewSubmit = async (e) => {
+
         e.preventDefault();
 
         try {
+
             setSubmittingReview(true);
+
             setReviewMessage("");
 
-            const token = localStorage.getItem("token");
+
+            const token =
+                localStorage.getItem("token");
+
 
             if (!token) {
-                setReviewMessage("Please login first.");
+
+                setReviewMessage(
+                    "Please login first."
+                );
+
                 return;
+
             }
 
-            // Validate comment
+
             if (!comment.trim()) {
-                setReviewMessage("Please write a review.");
+
+                setReviewMessage(
+                    "Please write a review."
+                );
+
                 return;
+
             }
- 
-            const response = await fetch(
-                "http://localhost:5000/api/reviews",
-                {
-                    method: "POST",
- 
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`
-                    },
- 
-                    body: JSON.stringify({
-                        property_id: id,
-                        rating: Number(rating),
-                        comment: comment.trim()
-                    })
-                }
-            );
 
 
-            const data = await response.json();
+            const response =
+                await fetch(
+                    "http://localhost:5000/api/reviews",
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+
+                            Authorization:
+                                `Bearer ${token}`
+                        },
+
+                        body: JSON.stringify({
+
+                            property_id:
+                                id,
+
+                            rating:
+                                Number(rating),
+
+                            comment:
+                                comment.trim()
+
+                        })
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
 
             if (!response.ok) {
+
                 throw new Error(
                     data.message ||
                     "Review submission failed."
                 );
+
             }
+
 
             setReviewMessage(
                 "Review submitted successfully!"
             );
 
             setComment("");
+
             setRating(5);
 
-            // Refresh everything after successful review
+
             await fetchReviews();
+
             await fetchProperty();
+
+            await checkReviewEligibility();
 
 
         } catch (error) {
@@ -248,84 +354,125 @@ function PropertyDetails() {
         } finally {
 
             setSubmittingReview(false);
+
         }
+
     };
+
+
     const handleReportSubmit = async (e) => {
 
-    e.preventDefault();
+        e.preventDefault();
 
-    try {
+        try {
 
-        setSubmittingReport(true);
-        setReportMessage("");
+            setSubmittingReport(true);
 
-        const token = localStorage.getItem("token");
+            setReportMessage("");
 
-        if (!token) {
-            setReportMessage(
-                "Please login before submitting a report."
-            );
-            return;
-        }
 
-        if (!reportDescription.trim()) {
-            setReportMessage(
-                "Please describe the reason for your report."
-            );
-            return;
-        }
+            const token =
+                localStorage.getItem("token");
 
-        const response = await fetch(
-            "http://localhost:5000/api/reports",
-            {
-                method: "POST",
 
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
-                },
+            if (!token) {
 
-                body: JSON.stringify({
-                    property_id: id,
-                    category: reportCategory,
-                    description: reportDescription.trim()
-                })
+                setReportMessage(
+                    "Please login before submitting a report."
+                );
+
+                return;
+
             }
-        );
 
-        const data = await response.json();
 
-        if (!response.ok) {
-            throw new Error(
-                data.message ||
+            if (!reportDescription.trim()) {
+
+                setReportMessage(
+                    "Please describe the reason for your report."
+                );
+
+                return;
+
+            }
+
+
+            const response =
+                await fetch(
+                    "http://localhost:5000/api/reports",
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+
+                            Authorization:
+                                `Bearer ${token}`
+                        },
+
+                        body: JSON.stringify({
+
+                            property_id:
+                                id,
+
+                            category:
+                                reportCategory,
+
+                            description:
+                                reportDescription.trim()
+
+                        })
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.message ||
+                    "Report submission failed."
+                );
+
+            }
+
+
+            setReportMessage(
+                "Report submitted successfully. Our admin team will review it."
+            );
+
+            setReportDescription("");
+
+            setReportCategory(
+                "fraudulent_listing"
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "Report submission error:",
+                error
+            );
+
+            setReportMessage(
+                error.message ||
                 "Report submission failed."
             );
+
+        } finally {
+
+            setSubmittingReport(false);
+
         }
 
-        setReportMessage(
-            "Report submitted successfully. Our admin team will review it."
-        );
+    };
 
-        setReportDescription("");
-        setReportCategory("fraudulent_listing");
 
-    } catch (error) {
-
-        console.error(
-            "Report submission error:",
-            error
-        );
-
-        setReportMessage(
-            error.message ||
-            "Report submission failed."
-        );
-
-    } finally {
-
-        setSubmittingReport(false);
-    }
-};
     if (loading) {
 
         return (
@@ -387,12 +534,14 @@ function PropertyDetails() {
 
     }
 
+
     const images =
         property.image_urls?.length
             ? property.image_urls
             : [
                 "https://images.unsplash.com/photo-1564013799919-ab600027ffc6"
             ];
+
 
     return (
 
@@ -413,6 +562,7 @@ function PropertyDetails() {
                     ← Back to Properties
                 </button>
 
+
                 <img
                     src={
                         images[activeImage]
@@ -427,6 +577,7 @@ function PropertyDetails() {
                         borderRadius: "10px"
                     }}
                 />
+
 
                 {images.length > 1 && (
 
@@ -471,6 +622,7 @@ function PropertyDetails() {
 
                 )}
 
+
                 <div
                     style={{
                         marginTop: "1.5rem"
@@ -485,6 +637,7 @@ function PropertyDetails() {
 
                     </span>
 
+
                     <h2
                         style={{
                             margin: "0.5rem 0"
@@ -496,6 +649,7 @@ function PropertyDetails() {
                         }
 
                     </h2>
+
 
                     <p
                         style={{
@@ -518,6 +672,7 @@ function PropertyDetails() {
 
                     </p>
 
+
                     <p
                         style={{
                             margin: "1rem 0"
@@ -529,6 +684,7 @@ function PropertyDetails() {
                         }
 
                     </p>
+
 
                     <div
                         style={{
@@ -578,6 +734,7 @@ function PropertyDetails() {
                         </span>
 
                     </div>
+
 
                     {
                         property.amenities?.length >
@@ -629,22 +786,30 @@ function PropertyDetails() {
                         )
                     }
 
+
                     <div
                         style={{
                             borderTop:
                                 "1px solid var(--border-color)",
+
                             paddingTop:
                                 "1rem",
+
                             marginTop:
                                 "1rem",
+
                             display:
                                 "flex",
+
                             justifyContent:
                                 "space-between",
+
                             alignItems:
                                 "center",
+
                             gap:
                                 "1rem",
+
                             flexWrap:
                                 "wrap"
                         }}
@@ -667,8 +832,10 @@ function PropertyDetails() {
                                 style={{
                                     fontSize:
                                         "0.85rem",
+
                                     fontWeight:
                                         "normal",
+
                                     color:
                                         "var(--text-muted)"
                                 }}
@@ -680,52 +847,171 @@ function PropertyDetails() {
                         </div>
 
 
+                        {/* =========================================
+                            BOOK STAY + CHAT WITH HOST
+                        ========================================= */}
+
                         {(() => {
-                            const storedUser = JSON.parse(localStorage.getItem("user") || "null");
-                            const isHostOrAdmin = storedUser && ["host", "admin"].includes(storedUser.role);
-                            if (isHostOrAdmin) return null;
+
+                            const currentUser =
+                                JSON.parse(
+                                    localStorage.getItem(
+                                        "user"
+                                    ) || "null"
+                                );
+
+
+                            const isHostOrAdmin =
+                                currentUser &&
+                                ["host", "admin"].includes(
+                                    currentUser.role
+                                );
+
+
+                            if (isHostOrAdmin) {
+
+                                return null;
+
+                            }
+
+
                             return (
-                                <button
-                                    type="button"
-                                    className="btn btn-primary"
-                                    onClick={() => {
 
-                                        const token = localStorage.getItem("token");
-
-                                        if (!token) {
-
-                                            alert("Please login as a guest to book this property.");
-
-                                            navigate("/login");
-
-                                            return;
-
-                                        }
-
-                                        setShowBookingModal(true);
-
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        gap: "0.75rem",
+                                        alignItems: "center",
+                                        flexWrap: "wrap"
                                     }}
                                 >
-                                    Book Stay
-                                </button>
+
+                                    {/* BOOK STAY */}
+
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary"
+                                        onClick={() => {
+
+                                            const token =
+                                                localStorage.getItem(
+                                                    "token"
+                                                );
+
+
+                                            if (!token) {
+
+                                                alert(
+                                                    "Please login as a guest to book this property."
+                                                );
+
+                                                navigate(
+                                                    "/login"
+                                                );
+
+                                                return;
+
+                                            }
+
+
+                                            setShowBookingModal(
+                                                true
+                                            );
+
+                                        }}
+                                    >
+                                        Book Stay
+                                    </button>
+
+
+                                    {/* CHAT WITH HOST */}
+
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        onClick={() => {
+
+                                            const token =
+                                                localStorage.getItem(
+                                                    "token"
+                                                );
+
+
+                                            if (!token) {
+
+                                                alert(
+                                                    "Please login as a guest to chat with the host."
+                                                );
+
+                                                navigate(
+                                                    "/login"
+                                                );
+
+                                                return;
+
+                                            }
+
+
+                                            if (
+                                                currentUser?.role !==
+                                                "guest"
+                                            ) {
+
+                                                alert(
+                                                    "Only guests can start a conversation with a host."
+                                                );
+
+                                                return;
+
+                                            }
+
+
+                                            navigate(
+                                                `/chat?propertyId=${property.id}`
+                                            );
+
+                                        }}
+                                    >
+                                        💬 Chat with Host
+                                    </button>
+
+                                </div>
+
                             );
+
                         })()}
 
                     </div>
-                    {/* Reporting Section */}
+
+
+                    {/* =========================================
+                        REPORTING SECTION
+                    ========================================= */}
+
                     <div
                         style={{
-                            borderTop: "1px solid var(--border-color)",
-                            marginTop: "2rem",
-                            paddingTop: "1.5rem"
+                            borderTop:
+                                "1px solid var(--border-color)",
+
+                            marginTop:
+                                "2rem",
+
+                            paddingTop:
+                                "1.5rem"
                         }}
                     >
+
                         <button
                             type="button"
                             className="btn btn-secondary"
                             onClick={() => {
-                                setShowReportForm(!showReportForm);
+
+                                setShowReportForm(
+                                    !showReportForm
+                                );
+
                                 setReportMessage("");
+
                             }}
                         >
                             ⚑ Report this property
@@ -735,12 +1021,21 @@ function PropertyDetails() {
                         {showReportForm && (
 
                             <form
-                                onSubmit={handleReportSubmit}
+                                onSubmit={
+                                    handleReportSubmit
+                                }
                                 style={{
-                                    marginTop: "1rem",
-                                    padding: "1rem",
-                                    border: "1px solid var(--border-color)",
-                                    borderRadius: "8px"
+                                    marginTop:
+                                        "1rem",
+
+                                    padding:
+                                        "1rem",
+
+                                    border:
+                                        "1px solid var(--border-color)",
+
+                                    borderRadius:
+                                        "8px"
                                 }}
                             >
 
@@ -755,9 +1050,13 @@ function PropertyDetails() {
 
 
                                 <select
-                                    value={reportCategory}
+                                    value={
+                                        reportCategory
+                                    }
                                     onChange={(e) =>
-                                        setReportCategory(e.target.value)
+                                        setReportCategory(
+                                            e.target.value
+                                        )
                                     }
                                     style={{
                                         width: "100%",
@@ -792,9 +1091,13 @@ function PropertyDetails() {
 
 
                                 <textarea
-                                    value={reportDescription}
+                                    value={
+                                        reportDescription
+                                    }
                                     onChange={(e) =>
-                                        setReportDescription(e.target.value)
+                                        setReportDescription(
+                                            e.target.value
+                                        )
                                     }
                                     placeholder="Explain why you are reporting this property..."
                                     required
@@ -820,7 +1123,9 @@ function PropertyDetails() {
                                     <button
                                         type="submit"
                                         className="btn btn-danger"
-                                        disabled={submittingReport}
+                                        disabled={
+                                            submittingReport
+                                        }
                                     >
                                         {
                                             submittingReport
@@ -834,12 +1139,19 @@ function PropertyDetails() {
                                         type="button"
                                         className="btn btn-secondary"
                                         onClick={() => {
-                                            setShowReportForm(false);
+
+                                            setShowReportForm(
+                                                false
+                                            );
+
                                             setReportMessage("");
+
                                             setReportDescription("");
+
                                             setReportCategory(
                                                 "fraudulent_listing"
                                             );
+
                                         }}
                                     >
                                         Cancel
@@ -852,10 +1164,13 @@ function PropertyDetails() {
 
                                     <p
                                         style={{
-                                            marginTop: "0.75rem"
+                                            marginTop:
+                                                "0.75rem"
                                         }}
                                     >
-                                        {reportMessage}
+                                        {
+                                            reportMessage
+                                        }
                                     </p>
 
                                 )}
@@ -865,122 +1180,243 @@ function PropertyDetails() {
                         )}
 
                     </div>
-                    {/* Reviews Section */}
+
+
+                    {/* =========================================
+                        REVIEWS SECTION
+                    ========================================= */}
+
                     <div
                         style={{
-                            borderTop: "1px solid var(--border-color)",
-                            marginTop: "2rem",
-                            paddingTop: "1.5rem"
+                            borderTop:
+                                "1px solid var(--border-color)",
+
+                            marginTop:
+                                "2rem",
+
+                            paddingTop:
+                                "1.5rem"
                         }}
                     >
-                        <h3>Guest Reviews</h3>
-                        
+
+                        <h3>
+                            Guest Reviews
+                        </h3>
+
+
                         {canReview && (
-                        <form
-                            onSubmit={handleReviewSubmit}
-                            style={{
-                                margin: "1rem 0 1.5rem 0",
-                                padding: "1rem",
-                                border: "1px solid var(--border-color)",
-                                borderRadius: "8px"
-                            }}
-                        >
-                            <h4>Write a Review</h4>
 
-                            <label>Rating:</label>
-
-                            <select
-                                value={rating}
-                                onChange={(e) => setRating(e.target.value)}
+                            <form
+                                onSubmit={
+                                    handleReviewSubmit
+                                }
                                 style={{
-                                    marginLeft: "10px",
-                                    padding: "8px"
+                                    margin:
+                                        "1rem 0 1.5rem 0",
+
+                                    padding:
+                                        "1rem",
+
+                                    border:
+                                        "1px solid var(--border-color)",
+
+                                    borderRadius:
+                                        "8px"
                                 }}
                             >
-                                <option value="5">⭐⭐⭐⭐⭐ </option>
-                                <option value="4">⭐⭐⭐⭐ </option>
-                                <option value="3">⭐⭐⭐ </option>
-                                <option value="2">⭐⭐ </option>
-                                <option value="1">⭐ </option>
-                            </select>
 
-                            <textarea
-                                value={comment}
-                                onChange={(e) => setComment(e.target.value)}
-                                placeholder="Write about your stay..."
-                                required
-                                style={{
-                                    width: "100%",
-                                    minHeight: "100px",
-                                    marginTop: "1rem",
-                                    padding: "10px",
-                                    boxSizing: "border-box"
-                                }}
-                            />
+                                <h4>
+                                    Write a Review
+                                </h4>
 
-                            <button
-                                type="submit"
-                                className="btn btn-primary"
-                                disabled={submittingReview}
-                                style={{ marginTop: "0.75rem" }}
-                            >
-                                {submittingReview ? "Submitting..." : "Submit Review"}
-                            </button>
 
-                            {reviewMessage && (
-                                <p style={{ marginTop: "0.75rem" }}>
-                                    {reviewMessage}
-                                </p>
-                            )}
-                        </form>
+                                <label>
+                                    Rating:
+                                </label>
 
-                        )}
 
-                        {reviewsLoading ? (
-                            <p>Loading reviews...</p>
-                        ) : reviews.length === 0 ? (
-                            <p style={{ color: "var(--text-muted)" }}>
-                                No reviews yet.
-                            </p>
-                        ) : (
-                            reviews.map((review) => (
-                                <div
-                                    key={review.id}
+                                <select
+                                    value={rating}
+                                    onChange={(e) =>
+                                        setRating(
+                                            e.target.value
+                                        )
+                                    }
                                     style={{
-                                        padding: "1rem 0",
-                                        borderBottom:
-                                            "1px solid var(--border-color)"
+                                        marginLeft:
+                                            "10px",
+
+                                        padding:
+                                            "8px"
                                     }}
                                 >
-                                    <div>
-                                        ⭐ {review.rating}/5
-                                    </div>
 
-                                    <p>{review.comment}</p>
+                                    <option value="5">
+                                        ⭐⭐⭐⭐⭐
+                                    </option>
 
-                                    <small
+                                    <option value="4">
+                                        ⭐⭐⭐⭐
+                                    </option>
+
+                                    <option value="3">
+                                        ⭐⭐⭐
+                                    </option>
+
+                                    <option value="2">
+                                        ⭐⭐
+                                    </option>
+
+                                    <option value="1">
+                                        ⭐
+                                    </option>
+
+                                </select>
+
+
+                                <textarea
+                                    value={comment}
+                                    onChange={(e) =>
+                                        setComment(
+                                            e.target.value
+                                        )
+                                    }
+                                    placeholder="Write about your stay..."
+                                    required
+                                    style={{
+                                        width: "100%",
+                                        minHeight: "100px",
+                                        marginTop: "1rem",
+                                        padding: "10px",
+                                        boxSizing: "border-box"
+                                    }}
+                                />
+
+
+                                <button
+                                    type="submit"
+                                    className="btn btn-primary"
+                                    disabled={
+                                        submittingReview
+                                    }
+                                    style={{
+                                        marginTop:
+                                            "0.75rem"
+                                    }}
+                                >
+                                    {
+                                        submittingReview
+                                            ? "Submitting..."
+                                            : "Submit Review"
+                                    }
+                                </button>
+
+
+                                {reviewMessage && (
+
+                                    <p
                                         style={{
-                                            color: "var(--text-muted)"
+                                            marginTop:
+                                                "0.75rem"
                                         }}
                                     >
-                                        {new Date(
-                                            review.created_at
-                                        ).toLocaleDateString()}
-                                    </small>
-                                </div>
-                            ))
+                                        {
+                                            reviewMessage
+                                        }
+                                    </p>
+
+                                )}
+
+                            </form>
+
                         )}
+
+
+                        {reviewsLoading ? (
+
+                            <p>
+                                Loading reviews...
+                            </p>
+
+                        ) : reviews.length === 0 ? (
+
+                            <p
+                                style={{
+                                    color:
+                                        "var(--text-muted)"
+                                }}
+                            >
+                                No reviews yet.
+                            </p>
+
+                        ) : (
+
+                            reviews.map(
+                                (review) => (
+
+                                    <div
+                                        key={
+                                            review.id
+                                        }
+                                        style={{
+                                            padding:
+                                                "1rem 0",
+
+                                            borderBottom:
+                                                "1px solid var(--border-color)"
+                                        }}
+                                    >
+
+                                        <div>
+                                            ⭐{" "}
+                                            {
+                                                review.rating
+                                            }
+                                            /5
+                                        </div>
+
+
+                                        <p>
+                                            {
+                                                review.comment
+                                            }
+                                        </p>
+
+
+                                        <small
+                                            style={{
+                                                color:
+                                                    "var(--text-muted)"
+                                            }}
+                                        >
+                                            {
+                                                new Date(
+                                                    review.created_at
+                                                ).toLocaleDateString()
+                                            }
+                                        </small>
+
+                                    </div>
+
+                                )
+                            )
+
+                        )}
+
                     </div>
 
                 </div>
 
             </div>
 
+
             {showBookingModal && (
 
                 <BookingModal
                     property={property}
-                    onClose={() => setShowBookingModal(false)}
+                    onClose={() =>
+                        setShowBookingModal(false)
+                    }
                 />
 
             )}

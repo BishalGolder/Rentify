@@ -7,6 +7,8 @@ import PropertyMarketplace from "./pages/propertyMarketplace";
 import Properties from "./pages/properties";
 import AddProperty from "./pages/addProperty";
 import PropertyDetails from "./pages/propertyDetails";
+import Chat from "./pages/chat";
+import HostChatInbox from "./pages/hostChatInbox";
 import AdminDashboard from "./pages/adminDashboard";
 import Wishlist from "./pages/wishlist";
 import Compare from "./pages/compare";
@@ -35,6 +37,8 @@ function App() {
                 <Route path="/properties/:id/availability" element={<ManageAvailability />} />
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/wishlist" element={<Wishlist />} />
+                <Route path="/chat" element={<Chat />} />
+                <Route path="/chat/inbox" element={<HostChatInbox />} />
                 <Route path="/compare" element={<Compare />} />
                 <Route path="/bookings" element={<MyBookings />} />
                 <Route path="/revenue" element={<HostRevenue />} />

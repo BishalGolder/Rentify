@@ -18,12 +18,6 @@ function Dashboard() {
     const [user, setUser] =
         useState(null);
 
-    const [notifications, setNotifications] =
-        useState([]);
-
-    const [showNotifications, setShowNotifications] =
-        useState(false);
-
 
     /*
     =====================================================
@@ -68,56 +62,6 @@ function Dashboard() {
 
             setUser(parsedUser);
 
-
-            /*
-            =================================================
-            LOAD NOTIFICATIONS
-            =================================================
-            */
-
-            fetch(
-                "http://localhost:5000/api/notifications",
-                {
-                    method: "GET",
-
-                    headers: {
-                        Authorization:
-                            `Bearer ${token}`
-                    }
-                }
-            )
-                .then((res) => {
-
-                    if (!res.ok) {
-
-                        return [];
-
-                    }
-
-                    return res.json();
-
-                })
-                .then((data) => {
-
-                    setNotifications(
-                        Array.isArray(data)
-                            ? data
-                            : []
-                    );
-
-                })
-                .catch((error) => {
-
-                    console.error(
-                        "Notification loading error:",
-                        error
-                    );
-
-                    setNotifications([]);
-
-                });
-
-
         } catch (error) {
 
             console.error(
@@ -152,74 +96,6 @@ function Dashboard() {
         alert("Logged out successfully");
 
         navigate("/login");
-
-    };
-
-
-    /*
-    =====================================================
-    MARK NOTIFICATION AS READ
-    =====================================================
-    */
-
-    const handleNotificationClick = async (notification) => {
-
-        if (notification.is_read) {
-
-            return;
-
-        }
-
-
-        try {
-
-            const token =
-                localStorage.getItem("token");
-
-
-            await fetch(
-                `http://localhost:5000/api/notifications/${notification.id}/read`,
-                {
-                    method: "PUT",
-
-                    headers: {
-                        Authorization:
-                            `Bearer ${token}`
-                    }
-                }
-            );
-
-
-            setNotifications((previous) => {
-
-                return previous.map((item) => {
-
-                    if (
-                        item.id ===
-                        notification.id
-                    ) {
-
-                        return {
-                            ...item,
-                            is_read: true
-                        };
-
-                    }
-
-                    return item;
-
-                });
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "Notification read error:",
-                error
-            );
-
-        }
 
     };
 
