@@ -1,0 +1,59 @@
+.popular-properties {
+    width: 100%;
+    margin: 1.5rem 0 2.5rem;
+}
+
+.popular-properties-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin-bottom: 1rem;
+}
+
+.popular-properties-header h2 {
+    font-size: 1.4rem;
+    margin: 0;
+}
+
+.popular-properties-header p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 0.9rem;
+}
+
+.popular-properties-status {
+    color: #6b7280;
+    font-size: 0.9rem;
+}
+
+.popular-properties-scroll {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding-bottom: 0.75rem;
+    scroll-snap-type: x mandatory;
+}
+
+.popular-properties-scroll::-webkit-scrollbar {
+    height: 8px;
+}
+
+.popular-properties-scroll::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 999px;
+}
+
+.popular-properties-item {
+    flex: 0 0 280px;
+    scroll-snap-align: start;
+}
+
+.popular-properties-item .property-card {
+    height: 100%;
+}
+
+@media (max-width: 600px) {
+    .popular-properties-item {
+        flex-basis: 240px;
+    }
+}

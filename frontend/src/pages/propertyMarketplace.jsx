@@ -4,6 +4,7 @@ import PropertyCard from "../components/propertyCard";
 import "../styles/propertyMarketplace.css";
 import RecentlyViewed from "../components/recentlyViewed";
 import CompareBar from "../components/compareBar";
+import PopularProperties from "../components/popularProperties";
 
 function PropertyMarketplace() {
     // Existing State
@@ -62,6 +63,7 @@ function PropertyMarketplace() {
         <div className="marketplace">
             <h1>Available Properties</h1>
             <p>Find your perfect stay.</p>
+
             <RecentlyViewed />
 
             {/* Search Bar */}
@@ -213,6 +215,8 @@ function PropertyMarketplace() {
                     ))}
                 </div>
             )}
+
+            <PopularProperties limit={8} />
 
             <CompareBar />
         </div>

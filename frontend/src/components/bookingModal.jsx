@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import AvailabilityCalendar, { todayDateString } from "./availabilityCalendar";
 
 import "../styles/booking.css";
+import "../styles/coupons.css";
 
 
 const API_BASE = "http://localhost:5000/api";
@@ -28,6 +29,13 @@ function BookingModal({ property, onClose, onBookingSuccess }) {
 
     // New state for wallet balance
     const [walletBalance, setWalletBalance] = useState(null);
+
+    // Coupon state
+    const [couponCode, setCouponCode] = useState("");
+    const [appliedCoupon, setAppliedCoupon] = useState(null); // { code, discount_amount, final_amount }
+    const [couponChecking, setCouponChecking] = useState(false);
+    const [couponMessage, setCouponMessage] = useState("");
+    const [couponError, setCouponError] = useState("");
 
 
     /*
@@ -118,7 +126,111 @@ function BookingModal({ property, onClose, onBookingSuccess }) {
 
     const days = selection.dayCount || 0;
 
-    const totalPrice = days * Number(property.price || 0);
+    const subtotal = days * Number(property.price || 0);
+
+    const totalPrice = appliedCoupon
+        ? Math.max(0, subtotal - appliedCoupon.discount_amount)
+        : subtotal;
+
+
+    /*
+    =====================================================
+    RESET COUPON IF THE STAY CHANGES
+    (a previously-applied discount was calculated against
+    the old subtotal, so it can no longer be trusted)
+    =====================================================
+    */
+
+    useEffect(() => {
+
+        if (appliedCoupon) {
+            setAppliedCoupon(null);
+            setCouponMessage("");
+        }
+
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selection.dayCount]);
+
+
+    /*
+    =====================================================
+    APPLY COUPON
+    =====================================================
+    */
+
+    const handleApplyCoupon = async () => {
+
+        setCouponError("");
+        setCouponMessage("");
+
+        if (!couponCode.trim()) {
+            setCouponError("Please enter a coupon code.");
+            return;
+        }
+
+        if (!subtotal) {
+            setCouponError("Please select your dates first.");
+            return;
+        }
+
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            setCouponError("Please log in to apply a coupon.");
+            return;
+        }
+
+        try {
+
+            setCouponChecking(true);
+
+            const response = await fetch(`${API_BASE}/coupons/validate`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    code: couponCode.trim(),
+                    property_id: property.id,
+                    amount: subtotal
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.valid) {
+                throw new Error(data.message || "This coupon can't be applied.");
+            }
+
+            setAppliedCoupon({
+                code: data.code,
+                discount_amount: data.discount_amount,
+                final_amount: data.final_amount
+            });
+
+            setCouponMessage(`✓ Coupon applied — you saved ৳${data.discount_amount}.`);
+
+        } catch (error) {
+
+            console.error("Apply coupon error:", error);
+            setAppliedCoupon(null);
+            setCouponError(error.message || "This coupon can't be applied.");
+
+        } finally {
+
+            setCouponChecking(false);
+
+        }
+
+    };
+
+    const handleRemoveCoupon = () => {
+        setAppliedCoupon(null);
+        setCouponCode("");
+        setCouponMessage("");
+        setCouponError("");
+    };
 
 
     /*
@@ -193,7 +305,8 @@ function BookingModal({ property, onClose, onBookingSuccess }) {
                     check_in: selection.checkIn,
                     check_out: selection.checkOut,
                     day_count: selection.dayCount,
-                    guests
+                    guests,
+                    coupon_code: appliedCoupon ? appliedCoupon.code : undefined
                 })
 
             });
@@ -325,6 +438,56 @@ function BookingModal({ property, onClose, onBookingSuccess }) {
 
                         </div>
 
+                        <div className="booking-modal-section form-group">
+
+                            <label htmlFor="booking-coupon">Have a coupon?</label>
+
+                            {appliedCoupon ? (
+                                <div className="booking-coupon-box">
+                                    <input
+                                        id="booking-coupon"
+                                        type="text"
+                                        value={appliedCoupon.code}
+                                        disabled
+                                    />
+                                    <button
+                                        type="button"
+                                        className="btn-link danger"
+                                        onClick={handleRemoveCoupon}
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="booking-coupon-box">
+                                    <input
+                                        id="booking-coupon"
+                                        type="text"
+                                        placeholder="Enter coupon code"
+                                        value={couponCode}
+                                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                                    />
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary"
+                                        onClick={handleApplyCoupon}
+                                        disabled={couponChecking || !days}
+                                    >
+                                        {couponChecking ? "Checking…" : "Apply"}
+                                    </button>
+                                </div>
+                            )}
+
+                            {couponMessage && (
+                                <p className="booking-coupon-message success">{couponMessage}</p>
+                            )}
+
+                            {couponError && (
+                                <p className="booking-coupon-message error">{couponError}</p>
+                            )}
+
+                        </div>
+
                         <div className="booking-modal-section booking-modal-summary">
 
                             <div className="booking-modal-summary-row">
@@ -336,6 +499,18 @@ function BookingModal({ property, onClose, onBookingSuccess }) {
                                 <span>Days</span>
                                 <span>{days ? `${days} day${days > 1 ? "s" : ""}` : "-"}</span>
                             </div>
+
+                            <div className="booking-modal-summary-row">
+                                <span>Subtotal</span>
+                                <span>৳{subtotal || 0}</span>
+                            </div>
+
+                            {appliedCoupon && (
+                                <div className="booking-modal-summary-row" style={{ color: "var(--success-color)" }}>
+                                    <span>Discount ({appliedCoupon.code})</span>
+                                    <span>-৳{appliedCoupon.discount_amount}</span>
+                                </div>
+                            )}
 
                             <div className="booking-modal-summary-row total">
                                 <span>Total</span>

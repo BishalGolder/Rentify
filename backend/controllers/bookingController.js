@@ -3,6 +3,8 @@ import * as AvailabilityModel from "../models/availabilityModel.js";
 import { createNotification } from "../models/notificationModel.js";
 
 import * as PropertyModel from "../models/propertyModel.js";
+import * as CouponModel from "../models/couponModel.js";
+import { evaluateCoupon } from "../utils/couponUtils.js";
 
 
 /*
@@ -327,7 +329,73 @@ export const createBooking = async (req, res) => {
                 (new Date(check_out) - new Date(check_in)) / (1000 * 60 * 60 * 24)
               ) + 1);
  
-        const totalPrice = days * Number(property.price);
+        const subtotal = days * Number(property.price);
+
+
+        /*
+        ==============================================
+        APPLY COUPON (optional)
+        ==============================================
+        */
+
+        const { coupon_code } = req.body;
+
+        let appliedCoupon = null;
+        let discountAmount = 0;
+
+        if (coupon_code && coupon_code.trim()) {
+
+            const { data: coupon, error: couponError } =
+                await CouponModel.getCouponByCode(coupon_code.trim(), req.supabase);
+
+            if (couponError) {
+
+                return res.status(400).json({
+                    message: "Failed to validate coupon code."
+                });
+
+            }
+
+            let redemptionCount = 0;
+
+            if (coupon) {
+
+                const { count, error: countError } =
+                    await CouponModel.countUserRedemptions(coupon.id, guestId, req.supabase);
+
+                if (countError) {
+
+                    return res.status(400).json({
+                        message: "Failed to validate coupon code."
+                    });
+
+                }
+
+                redemptionCount = count || 0;
+
+            }
+
+            const evaluation = evaluateCoupon({
+                coupon,
+                amount: subtotal,
+                propertyId: property_id,
+                redemptionCount
+            });
+
+            if (!evaluation.valid) {
+
+                return res.status(400).json({
+                    message: evaluation.message || "This coupon can't be applied to this booking."
+                });
+
+            }
+
+            appliedCoupon = coupon;
+            discountAmount = evaluation.discountAmount;
+
+        }
+
+        const totalPrice = Math.max(0, Math.round((subtotal - discountAmount) * 100) / 100);
 
  
         const { error: paymentError } = await req.supabase.rpc(
@@ -348,6 +416,8 @@ export const createBooking = async (req, res) => {
             check_out,
             number_of_guests: guests,
             total_price: totalPrice,
+            coupon_id: appliedCoupon ? appliedCoupon.id : null,
+            discount_amount: discountAmount,
             status: "confirmed"
         };
 
@@ -410,6 +480,40 @@ export const createBooking = async (req, res) => {
 
         /*
         ==============================================
+        REDEEM COUPON (if one was applied)
+        ==============================================
+
+        Runs after the booking + payment succeed, so a
+        coupon is never "spent" on a booking that didn't
+        actually go through. If this step fails for some
+        reason, the booking itself is still valid — we
+        just log it rather than roll everything back.
+        ==============================================
+        */
+
+        if (appliedCoupon) {
+
+            try {
+
+                await CouponModel.redeemCoupon(
+                    appliedCoupon.id,
+                    guestId,
+                    data.id,
+                    discountAmount,
+                    req.supabase
+                );
+
+            } catch (couponRedeemError) {
+
+                console.error("Coupon redemption error:", couponRedeemError);
+
+            }
+
+        }
+
+
+        /*
+        ==============================================
         NOTIFY HOST
         ==============================================
         */
@@ -434,7 +538,10 @@ export const createBooking = async (req, res) => {
 
         return res.status(201).json({
             message: "Booking confirmed.",
-            booking: data
+            booking: data,
+            subtotal,
+            discount_amount: discountAmount,
+            total_price: totalPrice
         });
 
     } catch (error) {

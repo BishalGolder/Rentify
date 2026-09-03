@@ -1,0 +1,201 @@
+.forum-page {
+    max-width: 900px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+}
+
+.forum-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.forum-header h1 {
+    margin: 0 0 0.25rem;
+    font-size: 1.6rem;
+}
+
+.forum-header p {
+    margin: 0;
+    color: var(--text-muted, #6b7280);
+}
+
+.forum-new-thread {
+    margin-bottom: 1.5rem;
+}
+
+.forum-new-thread .form-group {
+    margin-bottom: 1rem;
+}
+
+.forum-new-thread label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+    font-size: 0.88rem;
+}
+
+.forum-new-thread input,
+.forum-new-thread select,
+.forum-new-thread textarea,
+.forum-reply-form textarea {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    background: var(--input-bg, #fff);
+    color: var(--text-main, #111827);
+}
+
+.forum-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.forum-filter-btn {
+    padding: 0.4rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    background: var(--card-bg, #fff);
+    color: var(--text-main, #111827);
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.forum-filter-btn.active {
+    background: var(--primary-color, #4f46e5);
+    color: white;
+    border-color: var(--primary-color, #4f46e5);
+}
+
+.forum-thread-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.forum-thread-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    transition: box-shadow 0.15s ease;
+}
+
+.forum-thread-card:hover {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.forum-thread-main h3 {
+    margin: 0.15rem 0 0.35rem;
+    font-size: 1.05rem;
+}
+
+.forum-pin {
+    font-size: 0.75rem;
+    color: var(--primary-color, #4f46e5);
+    font-weight: 600;
+}
+
+.forum-thread-excerpt {
+    margin: 0 0 0.5rem;
+    color: var(--text-muted, #6b7280);
+    font-size: 0.88rem;
+}
+
+.forum-thread-meta {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    font-size: 0.78rem;
+    color: var(--text-muted, #6b7280);
+}
+
+.forum-category-tag {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    background: rgba(79, 70, 229, 0.12);
+    color: var(--primary-color, #4f46e5);
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.forum-thread-replies {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 70px;
+    color: var(--text-muted, #6b7280);
+    font-size: 0.78rem;
+}
+
+.forum-thread-replies strong {
+    font-size: 1.2rem;
+    color: var(--text-main, #111827);
+}
+
+.forum-back-link {
+    display: inline-block;
+    margin-bottom: 1rem;
+    color: var(--primary-color, #4f46e5);
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.forum-thread-detail-header h1 {
+    margin: 0.4rem 0;
+    font-size: 1.5rem;
+}
+
+.forum-thread-body {
+    white-space: pre-wrap;
+    line-height: 1.5;
+    margin: 1rem 0;
+}
+
+.forum-replies-heading {
+    margin: 1.5rem 0 0.75rem;
+}
+
+.forum-reply-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.forum-reply-card {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+}
+
+.forum-reply-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    color: var(--text-muted, #6b7280);
+    margin-bottom: 0.35rem;
+}
+
+.forum-reply-card p {
+    margin: 0 0 0.4rem;
+    white-space: pre-wrap;
+    line-height: 1.45;
+}

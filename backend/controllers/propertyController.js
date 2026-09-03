@@ -1509,6 +1509,85 @@ export const getNearbyProperties = async (req, res) => {
 
 /*
 =====================================================
+GET POPULAR / RECOMMENDED PROPERTIES (public)
+=====================================================
+
+Powers the "Popular accommodations" section on the
+landing page / dashboard. Ranked by average_rating,
+with a fallback so the section still looks good on a
+fresh database with few reviews:
+
+1. Verified & unlocked properties only.
+2. Rated properties (average_rating > 0) come first,
+   ordered highest-rated first.
+3. Ties (and any remaining slots once rated properties
+   run out) are filled with the newest listings, so the
+   section is never empty just because nobody has left
+   a review yet.
+=====================================================
+*/
+
+export const getPopularProperties = async (req, res) => {
+    try {
+
+        const limit = req.query.limit
+            ? Math.min(Math.max(parseInt(req.query.limit, 10) || 8, 1), 20)
+            : 8;
+
+        const { data: properties, error } = await supabase
+            .from("properties")
+            .select("*")
+            .eq("verification_status", "verified")
+            .or("is_locked.is.null,is_locked.eq.false")
+            .order("average_rating", { ascending: false, nullsFirst: false })
+            .order("created_at", { ascending: false })
+            .limit(limit);
+
+        if (error) {
+            console.error("Get Popular Properties Error:", error);
+            return res.status(400).json({ message: error.message });
+        }
+
+        const propertyIds = (properties || []).map((property) => property.id);
+
+        let images = [];
+
+        if (propertyIds.length > 0) {
+
+            const { data: imageData } = await supabase
+                .from("property_images")
+                .select("property_id, image_url")
+                .in("property_id", propertyIds);
+
+            images = imageData || [];
+
+        }
+
+        const result = (properties || []).map((property) => {
+
+            const propertyImage = images.find(
+                (image) => image.property_id === property.id
+            );
+
+            return {
+                ...property,
+                image: propertyImage?.image_url || property.image_urls?.[0] || null,
+                rating: property.average_rating,
+                guests: property.maximum_guests
+            };
+
+        });
+
+        return res.json(result);
+
+    } catch (error) {
+        console.error("Get Popular Properties Error:", error);
+        return res.status(500).json({ message: "Failed to load popular properties." });
+    }
+};
+
+/*
+=====================================================
 ADMIN DELETE PROPERTY (Hard delete)
 =====================================================
 

@@ -20,6 +20,7 @@ import {
     getPendingProperties,
     verifyProperty,
     getNearbyProperties,
+    getPopularProperties,
     adminDeleteProperty,
     adminTogglePropertyLock,
     getAllPropertiesForAdmin
@@ -478,6 +479,9 @@ Query parameters:
 */
 
 router.get("/nearby", getNearbyProperties);
+
+
+router.get("/popular", getPopularProperties);
 
 
 /*

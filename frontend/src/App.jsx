@@ -17,6 +17,9 @@ import ManageAvailability from "./pages/manageAvailability";
 import HostRevenue from "./pages/hostRevenue";
 import Wallet from "./pages/wallet";
 import MapSearch from "./pages/mapSearch";
+import Coupons from "./pages/coupons";
+import Forum from "./pages/forum";
+import ForumThread from "./pages/forumThread";
 import DashboardLayout from "./components/dashboardLayout";
  
 function App() {
@@ -44,6 +47,9 @@ function App() {
                 <Route path="/revenue" element={<HostRevenue />} />
                 <Route path="/wallet" element={<Wallet />} />
                 <Route path="/map-search" element={<MapSearch />} />
+                <Route path="/coupons" element={<Coupons />} />
+                <Route path="/forum" element={<Forum />} />
+                <Route path="/forum/:id" element={<ForumThread />} />
             </Route>
         </Routes>
     );

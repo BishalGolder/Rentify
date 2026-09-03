@@ -1,0 +1,140 @@
+.coupons-page .coupon-form {
+    margin-top: 0.5rem;
+}
+
+.coupon-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.coupon-form-description {
+    grid-column: 1 / -1;
+}
+
+.coupon-form-grid .form-group label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.coupon-form-grid input,
+.coupon-form-grid select {
+    width: 100%;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-main);
+    font-size: 0.9rem;
+}
+
+.coupon-form-error {
+    color: var(--danger-color);
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+.coupon-form-success {
+    color: var(--success-color);
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+.coupon-table-wrap {
+    overflow-x: auto;
+}
+
+.coupon-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.5rem;
+    font-size: 0.88rem;
+}
+
+.coupon-table th,
+.coupon-table td {
+    text-align: left;
+    padding: 0.65rem 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+}
+
+.coupon-description {
+    font-weight: 400;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    white-space: normal;
+}
+
+.coupon-status {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.coupon-status.active {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--success-color);
+}
+
+.coupon-status.inactive {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger-color);
+}
+
+.coupon-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0;
+}
+
+.btn-link.danger {
+    color: var(--danger-color);
+}
+
+.btn-link:hover {
+    text-decoration: underline;
+}
+
+/* ── Coupon input inside the booking modal ─────────────── */
+
+.booking-coupon-box {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.booking-coupon-box input {
+    flex: 1;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.booking-coupon-message {
+    margin-top: 0.4rem;
+    font-size: 0.85rem;
+}
+
+.booking-coupon-message.success {
+    color: var(--success-color);
+}
+
+.booking-coupon-message.error {
+    color: var(--danger-color);
+}

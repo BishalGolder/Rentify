@@ -116,6 +116,10 @@ function DashboardLayout() {
                         Browse Properties
                     </button>
  
+                    <button className="nav-btn" onClick={() => navigate("/forum")}>
+                        Forum
+                    </button>
+ 
                     {user.role === "guest" && (
                         <>
                             <button className="nav-btn" onClick={() => navigate("/bookings")}>
@@ -128,6 +132,12 @@ function DashboardLayout() {
                                 Wallet
                             </button>
                         </>
+                    )}
+ 
+                    {(user.role === "host" || user.role === "admin") && (
+                        <button className="nav-btn" onClick={() => navigate("/coupons")}>
+                            Coupons
+                        </button>
                     )}
  
                     {user.role === "host" && (

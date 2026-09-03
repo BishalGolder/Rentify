@@ -279,7 +279,9 @@
 .nav-actions {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  row-gap: 0.5rem;
 }
 
 .nav-btn {
